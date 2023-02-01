@@ -9,7 +9,6 @@ module liquidswap::liquidity_pool {
     use aptos_framework::timestamp;
 
     use liquidswap_lp::lp_coin::LP;
-    use u256::u256;
     use uq64x64::uq64x64;
 
     use liquidswap::coin_helper;
@@ -84,6 +83,7 @@ module liquidswap::liquidity_pool {
         last_price_y_cumulative: u128,
         lp_mint_cap: coin::MintCapability<LP<X, Y, Curve>>,
         lp_burn_cap: coin::BurnCapability<LP<X, Y, Curve>>,
+        lp_reserved_coins: coin::Coin<LP<X, Y, Curve>>,
         // Scales are pow(10, token_decimals).
         x_scale: u64,
         y_scale: u64,
@@ -156,6 +156,7 @@ module liquidswap::liquidity_pool {
             last_price_y_cumulative: 0,
             lp_mint_cap,
             lp_burn_cap,
+            lp_reserved_coins: coin::zero(),
             x_scale,
             y_scale,
             locked: false,
@@ -210,6 +211,10 @@ module liquidswap::liquidity_pool {
         let provided_liq = if (lp_coins_total == 0) {
             let initial_liq = math::sqrt(math::mul_to_u128(x_provided_val, y_provided_val));
             assert!(initial_liq > MINIMAL_LIQUIDITY, ERR_NOT_ENOUGH_INITIAL_LIQUIDITY);
+
+            let lp_reserved_coins = coin::mint<LP<X, Y, Curve>>(MINIMAL_LIQUIDITY, &pool.lp_mint_cap);
+            coin::merge(&mut pool.lp_reserved_coins, lp_reserved_coins);
+
             initial_liq - MINIMAL_LIQUIDITY
         } else {
             let x_liq = math::mul_div_u128((x_provided_val as u128), lp_coins_total, (x_reserve_size as u128));
@@ -548,21 +553,13 @@ module liquidswap::liquidity_pool {
             let lp_value_before_swap = stable_curve::lp_value(x_res, x_scale, y_res, y_scale);
             let lp_value_after_swap_and_fee = stable_curve::lp_value(x_res_with_fees, x_scale, y_res_with_fees, y_scale);
 
-            let cmp = u256::compare(&lp_value_after_swap_and_fee, &lp_value_before_swap);
-            assert!(cmp == 2, ERR_INCORRECT_SWAP);
+            assert!(lp_value_after_swap_and_fee > lp_value_before_swap, ERR_INCORRECT_SWAP);
         } else if (curves::is_uncorrelated<Curve>()) {
             let lp_value_before_swap = x_res * y_res;
-            let lp_value_before_swap_u256 = u256::mul(
-                u256::from_u128(lp_value_before_swap),
-                u256::from_u64(FEE_SCALE * FEE_SCALE)
-            );
-            let lp_value_after_swap_and_fee = u256::mul(
-                u256::from_u128(x_res_with_fees),
-                u256::from_u128(y_res_with_fees),
-            );
+            let lp_value_before_swap = (lp_value_before_swap as u256) * 100000000; // FEE_SCALE * FEE_SCALE
+            let lp_value_after_swap_and_fee = (x_res_with_fees as u256) * (y_res_with_fees as u256);
 
-            let cmp = u256::compare(&lp_value_after_swap_and_fee, &lp_value_before_swap_u256);
-            assert!(cmp == 2, ERR_INCORRECT_SWAP);
+            assert!(lp_value_after_swap_and_fee > lp_value_before_swap, ERR_INCORRECT_SWAP);
         } else {
             abort ERR_UNREACHABLE
         };
