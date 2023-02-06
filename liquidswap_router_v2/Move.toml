@@ -1,7 +1,0 @@
-[package]
-name = "LiquidswapRouterV2"
-version = "1.0.0"
-upgrade_policy = "immutable"
-
-[dependencies.Liquidswap]
-local = ".."
