@@ -606,10 +606,6 @@ module liquidswap::router_tests {
     fun test_stable_curve_swap_exact_3() {
         let (coin_admin, lp_owner) = register_stable_pool_with_liquidity(2930000000000, 293000000000000);
 
-        
-
-        
-
         let usdc_to_swap_val = 32207482132;
 
         let usdc_to_swap = test_coins::mint<USDC>(&coin_admin, usdc_to_swap_val);
@@ -651,10 +647,6 @@ module liquidswap::router_tests {
     fun test_stable_curve_swap_exact_vice_versa_1() {
         let (coin_admin, lp_owner) = register_stable_pool_with_liquidity(15000000000, 1500000000000);
 
-        
-
-        
-
         let usdt_to_swap_val = 125426939;
         let usdc_to_get_val = router::get_amount_out<USDT, USDC, Stable>(usdt_to_swap_val);
         let usdt_to_swap = test_coins::mint<USDT>(&coin_admin, usdt_to_swap_val);
@@ -672,8 +664,6 @@ module liquidswap::router_tests {
     #[test]
     fun test_stable_curve_exact_swap() {
         let (coin_admin, lp_owner) = register_stable_pool_with_liquidity(15000000000, 1500000000000);
-
-        
 
         let usdc_to_get_val = 1254269;
         let usdt_to_swap_val = router::get_amount_in<USDT, USDC, Stable>(usdc_to_get_val);
@@ -697,10 +687,6 @@ module liquidswap::router_tests {
     #[test]
     fun test_stable_curve_exact_swap_vice_versa() {
         let (coin_admin, lp_owner) = register_stable_pool_with_liquidity(15000000000, 1500000000000);
-
-        
-
-        
 
         let usdt_to_get_val = 125804401;
         let usdc_to_swap_val = router::get_amount_in<USDC, USDT, Stable>(usdt_to_get_val);
@@ -1305,5 +1291,75 @@ module liquidswap::router_tests {
     #[expected_failure(abort_code = liquidity_pool::ERR_POOL_DOES_NOT_EXIST)]
     fun test_get_dao_fee_fail_if_pool_does_not_exists() {
         router::get_dao_fee<BTC, USDT, Uncorrelated>();
+    }
+
+    #[test]
+    fun test_get_amount_out_does_not_overflow_on_liquidity_close_to_u64_max() {
+        // 100 BTC, 28000 USDT
+        let (_, _) = register_pool_with_liquidity(2658758714820000, 28000000000);
+
+        let _ = router::get_amount_out<BTC, USDT, Uncorrelated>(1);
+    }
+
+    #[test]
+    fun test_get_amount_out_does_not_overflow_on_coin_in_close_to_u64_max() {
+        // 100 BTC, 28000 USDT
+        let (_, _) = register_pool_with_liquidity(2658758, 280000);
+
+        let _ = router::get_amount_out<BTC, USDT, Uncorrelated>(2658758714820000);
+    }
+
+    #[test]
+    fun test_get_amount_in_does_not_overflow_on_liquidity_x_close_to_u64_max() {
+        // 100 BTC, 28000 USDT
+        let (_, _) = register_pool_with_liquidity(2658758714820000, 28000000000);
+
+        let _ = router::get_amount_in<BTC, USDT, Uncorrelated>(1);
+    }
+
+    #[test]
+    fun test_get_amount_in_does_not_overflow_on_liquidity_y_close_to_u64_max() {
+        // 100 BTC, 28000 USDT
+        let (_, _) = register_pool_with_liquidity(28000000000, 2658758714820000);
+
+        let _ = router::get_amount_in<BTC, USDT, Uncorrelated>(1);
+    }
+
+    #[test]
+    #[expected_failure(abort_code = router::ERR_INSUFFICIENT_Y_AMOUNT)]
+    fun test_get_amount_in_aborts_if_coin_out_bigger_than_reserves() {
+        // 100 BTC, 28000 USDT
+        let (_, _) = register_pool_with_liquidity(28000000000, 28000000000);
+
+        let _ = router::get_amount_in<BTC, USDT, Uncorrelated>(2658758714820000);
+    }
+
+    #[test]
+    #[expected_failure(abort_code = router::ERR_INSUFFICIENT_Y_AMOUNT)]
+    fun test_get_amount_in_if_coin_out_exactly_equals_reserve_out() {
+        // 100 BTC, 28000 USDT
+        let (_, _) = register_pool_with_liquidity(28000000000, 28000000000);
+
+        let _ = router::get_amount_in<BTC, USDT, Uncorrelated>(28000000000);
+    }
+
+    #[test]
+    #[expected_failure(abort_code = router::ERR_COIN_CONVERSION_OVERFLOW)]
+    fun test_add_liquidity_with_imbalanced_reserves() {
+        // 100 BTC, 28000 USDT
+        let (coin_admin, lp_owner) = register_pool_with_liquidity(1, 10000000);
+
+        coin::register<BTC>(&lp_owner);
+        coin::register<USDT>(&lp_owner);
+
+        let btc_in = test_coins::mint<BTC>(&coin_admin, 2658758714820000);
+        let usdt_in = test_coins::mint<USDT>(&coin_admin, 1000);
+        let (btc_out, usdt_out, lp_out) =
+            router::add_liquidity<BTC, USDT, Uncorrelated>(btc_in, 1, usdt_in, 1);
+
+        let lp_owner_addr = signer::address_of(&lp_owner);
+        coin::deposit(lp_owner_addr, btc_out);
+        coin::deposit(lp_owner_addr, usdt_out);
+        coin::deposit(lp_owner_addr, lp_out);
     }
 }
