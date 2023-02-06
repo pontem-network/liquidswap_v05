@@ -86,7 +86,6 @@ module liquidswap::router_tests {
 
         let btc_coins = test_coins::mint<BTC>(&coin_admin, 101);
         let usdt_coins = test_coins::mint<USDT>(&coin_admin, 9000);
-        
 
         let (coin_x, coin_y, lp_coins) =
             router::add_liquidity<BTC, USDT, Uncorrelated>(
@@ -95,11 +94,10 @@ module liquidswap::router_tests {
                 usdt_coins,
                 9000,
             );
-        // 101 - 90 = 11
         assert!(coin::value(&coin_x) == 11, 0);
         assert!(coin::value(&coin_y) == 0, 1);
-        // 8.91 ~ 8
-        assert!(coin::value(&lp_coins) == 8, 2);
+
+        assert!(coin::value(&lp_coins) == 900, 2);
 
         coin::register<BTC>(&lp_owner);
         coin::register<USDT>(&lp_owner);
@@ -176,7 +174,7 @@ module liquidswap::router_tests {
     fun test_remove_liquidity() {
         let (_, lp_owner) = register_pool_with_liquidity(101, 10100);
 
-        let lp_coins_val = 2u64;
+        let lp_coins_val = 10;
         
         let lp_coins_to_burn = coin::withdraw<LP<BTC, USDT, Uncorrelated>>(&lp_owner, lp_coins_val);
 
@@ -187,8 +185,8 @@ module liquidswap::router_tests {
             router::remove_liquidity<BTC, USDT, Uncorrelated>(lp_coins_to_burn, x_out, y_out);
 
         let (usdt_reserve, btc_reserve) = router::get_reserves_size<USDT, BTC, Uncorrelated>();
-        assert!(usdt_reserve == 8080, 0);
-        assert!(btc_reserve == 81, 1);
+        assert!(usdt_reserve == 10000, 0);
+        assert!(btc_reserve == 100, 1);
 
         assert!(coin::value(&coin_x) == x_out, 2);
         assert!(coin::value(&coin_y) == y_out, 3);
@@ -208,7 +206,7 @@ module liquidswap::router_tests {
     fun test_remove_liquidity_to_fail_if_less_than_minimum_x() {
         let (_, lp_owner) = register_pool_with_liquidity(101, 10100);
 
-        let lp_coins_val = 2u64;
+        let lp_coins_val = 10;
         
         let lp_coins_to_burn = coin::withdraw<LP<BTC, USDT, Uncorrelated>>(&lp_owner, lp_coins_val);
 
@@ -227,7 +225,7 @@ module liquidswap::router_tests {
     fun test_remove_liquidity_to_fail_if_less_than_minimum_y() {
         let (_, lp_owner) = register_pool_with_liquidity(101, 10100);
 
-        let lp_coins_val = 2u64;
+        let lp_coins_val = 10;
         
         let lp_coins_to_burn = coin::withdraw<LP<BTC, USDT, Uncorrelated>>(&lp_owner, lp_coins_val);
 

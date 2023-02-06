@@ -121,13 +121,13 @@ module liquidswap::scripts_tests {
         scripts::remove_liquidity<BTC, USDT, Uncorrelated>(
             &lp_owner,
             10,
-            98,
-            10000,
+            1,
+            100,
         );
 
         assert!(coin::balance<LP<BTC, USDT, Uncorrelated>>(lp_owner_addr) == 0, 1);
-        assert!(coin::balance<BTC>(lp_owner_addr) == 101, 2);
-        assert!(coin::balance<USDT>(lp_owner_addr) == 10100, 3);
+        assert!(coin::balance<BTC>(lp_owner_addr) == 1, 2);
+        assert!(coin::balance<USDT>(lp_owner_addr) == 100, 3);
     }
 
     #[test]
