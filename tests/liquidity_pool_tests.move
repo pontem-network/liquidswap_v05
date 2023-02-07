@@ -1,5 +1,5 @@
 #[test_only]
-module liquidswap::liquidity_pool_tests {
+module liquidswap_v05::liquidity_pool_tests {
     use std::option;
     use std::signer;
     use std::string::utf8;
@@ -9,13 +9,13 @@ module liquidswap::liquidity_pool_tests {
     use aptos_framework::timestamp;
     use liquidswap_lp::lp_coin::LP;
 
-    use liquidswap::coin_helper::supply;
-    use liquidswap::curves::{Uncorrelated, Stable};
-    use liquidswap::emergency;
-    use liquidswap::global_config;
-    use liquidswap::liquidity_pool;
-    use liquidswap::curves;
-    use liquidswap::coin_helper;
+    use liquidswap_v05::coin_helper::supply;
+    use liquidswap_v05::curves::{Uncorrelated, Stable};
+    use liquidswap_v05::emergency;
+    use liquidswap_v05::global_config;
+    use liquidswap_v05::liquidity_pool;
+    use liquidswap_v05::curves;
+    use liquidswap_v05::coin_helper;
     use test_coin_admin::test_coins::{Self, USDT, BTC, USDC};
     use test_helpers::test_pool::{Self, initialize_liquidity_pool, create_liquidswap_admin};
 
@@ -2210,5 +2210,52 @@ module liquidswap::liquidity_pool_tests {
 
         coin::destroy_zero(zero);
         test_coins::burn(&coin_admin, usdt_coins);
+    }
+
+    #[test]
+    fun test_reserved_liquidity() {
+        let (coin_admin, lp_owner) = setup_btc_usdt_pool();
+
+        let btc_liq_val = 100000000;
+        let usdt_liq_val = 28000000000;
+        let btc_liq = test_coins::mint<BTC>(&coin_admin, btc_liq_val);
+        let usdt_liq = test_coins::mint<USDT>(&coin_admin, usdt_liq_val);
+
+        timestamp::fast_forward_seconds(1660338836);
+
+        let lp_coins_val =
+            test_pool::mint_liquidity<BTC, USDT, Uncorrelated>(&lp_owner, btc_liq, usdt_liq);
+
+        let expected_liquidity = 1673320053;
+        assert!(lp_coins_val == expected_liquidity - MINIMAL_LIQUIDITY, 0);
+        assert!(supply<LP<BTC, USDT, Uncorrelated>>() == (expected_liquidity as u128), 1);
+
+        let lp_coins = coin::withdraw<
+            LP<BTC, USDT, Uncorrelated>
+        >(&lp_owner, lp_coins_val);
+
+        let (x_coin, y_coin) = liquidity_pool::burn<BTC, USDT, Uncorrelated>(lp_coins);
+
+        let lp_owner_addr = signer::address_of(&lp_owner);
+
+        coin::register<BTC>(&lp_owner);
+        coin::register<USDT>(&lp_owner);
+
+        coin::deposit(lp_owner_addr, x_coin);
+        coin::deposit(lp_owner_addr, y_coin);
+
+        assert!(supply<LP<BTC, USDT, Uncorrelated>>() == (MINIMAL_LIQUIDITY as u128), 2);
+        assert!(liquidity_pool::get_reserved_value<BTC, USDT, Uncorrelated>() == MINIMAL_LIQUIDITY, 3);
+
+        let btc_liq_val = 100000000;
+        let usdt_liq_val = 28000000000;
+        let btc_liq = test_coins::mint<BTC>(&coin_admin, btc_liq_val);
+        let usdt_liq = test_coins::mint<USDT>(&coin_admin, usdt_liq_val);
+
+        test_pool::mint_liquidity<BTC, USDT, Uncorrelated>(&lp_owner, btc_liq, usdt_liq);
+        assert!(liquidity_pool::get_reserved_value<BTC, USDT, Uncorrelated>() == MINIMAL_LIQUIDITY, 4);
+
+        let expected_liquidity = 1673319053;
+        assert!(lp_coins_val == expected_liquidity, 5);
     }
 }

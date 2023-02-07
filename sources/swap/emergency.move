@@ -1,11 +1,11 @@
 /// The module allows for emergency stop Liquidswap operations.
-module liquidswap::emergency {
+module liquidswap_v05::emergency {
     use std::signer;
-    use liquidswap::global_config;
+    use liquidswap_v05::global_config;
     use aptos_framework::account::SignerCapability;
     use aptos_framework::account;
 
-    friend liquidswap::liquidity_pool;
+    friend liquidswap_v05::liquidity_pool;
 
     // Error codes.
     /// When the wrong account attempted to create an emergency resource.
@@ -32,7 +32,7 @@ module liquidswap::emergency {
     }
 
     public(friend) fun initialize(liquidswap_admin: &signer) {
-        assert!(signer::address_of(liquidswap_admin) == @liquidswap, ERR_UNREACHABLE);
+        assert!(signer::address_of(liquidswap_admin) == @liquidswap_v05, ERR_UNREACHABLE);
 
         let (_, signer_cap) =
             account::create_resource_account(liquidswap_admin, b"emergency_account_seed");
@@ -47,7 +47,7 @@ module liquidswap::emergency {
         assert!(signer::address_of(account) == global_config::get_emergency_admin(), ERR_NO_PERMISSIONS);
 
         let emergency_account_cap =
-            borrow_global<EmergencyAccountCapability>(@liquidswap);
+            borrow_global<EmergencyAccountCapability>(@liquidswap_v05);
         let emergency_account = account::create_signer_with_capability(&emergency_account_cap.signer_cap);
         move_to(&emergency_account, IsEmergency {});
     }
@@ -84,7 +84,7 @@ module liquidswap::emergency {
         assert!(signer::address_of(account) == global_config::get_emergency_admin(), ERR_NO_PERMISSIONS);
 
         let emergency_account_cap =
-            borrow_global<EmergencyAccountCapability>(@liquidswap);
+            borrow_global<EmergencyAccountCapability>(@liquidswap_v05);
         let emergency_account = account::create_signer_with_capability(&emergency_account_cap.signer_cap);
         move_to(&emergency_account, IsDisabled {});
     }

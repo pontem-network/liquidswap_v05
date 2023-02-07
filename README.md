@@ -1,6 +1,16 @@
-# Liquidswap
+# Liquidswap v0.5
 
-**Liquidswap** is AMM protocol for [Aptos](https://www.aptos.com/) blockchain. 
+**Liquidswap v0.5** is AMM protocol for [Aptos](https://www.aptos.com/) blockchain.
+
+The newest version of Liquidswap. 
+
+Interim release between v1 and v0. We still use [Liquidswap v0](https://github.com/pontem-network/liquidswap) 
+for Aptos mainnet, but for the creation of new pools or stable swaps, we would use v0.5
+
+It contains the following changes:
+
+* Native u256 for stable swaps and for `x*y>k` constant formula.
+* Fix for `initial liquidity loss of precision bug.`
 
 ## Documentation
 
@@ -11,8 +21,6 @@ Vist our [docs](https://docs.liquidswap.com) portal.
 To integrate Liquidswap into your project vist [integration](https://docs.liquidswap.com/integration) docs.
 
 ### Build
-
-**Important:** we recommend Aptos CLI v1.0.3.
 
 [Aptos CLI](https://github.com/aptos-labs/aptos-core/releases) required:
 

@@ -1,18 +1,18 @@
 #[test_only]
-module liquidswap::dao_storage_tests {
+module liquidswap_v05::dao_storage_tests {
     use std::signer;
 
     use aptos_framework::coin;
     use liquidswap_lp::lp_coin::LP;
 
-    use liquidswap::curves::Uncorrelated;
-    use liquidswap::dao_storage;
-    use liquidswap::liquidity_pool;
-    use liquidswap::router;
+    use liquidswap_v05::curves::Uncorrelated;
+    use liquidswap_v05::dao_storage;
+    use liquidswap_v05::liquidity_pool;
+    use liquidswap_v05::router;
     use test_coin_admin::test_coins::{Self, BTC, USDT};
     use test_helpers::test_account::create_account;
     use test_helpers::test_pool;
-    use liquidswap::global_config;
+    use liquidswap_v05::global_config;
 
     #[test]
     fun test_register() {

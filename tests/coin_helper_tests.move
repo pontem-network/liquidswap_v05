@@ -1,13 +1,13 @@
 #[test_only]
-module liquidswap::coin_helper_tests {
+module liquidswap_v05::coin_helper_tests {
     use std::string::{utf8, String};
 
     use aptos_framework::coin;
     use aptos_framework::genesis;
     use aptos_std::comparator;
 
-    use liquidswap::coin_helper;
-    use liquidswap::curves::{Uncorrelated, Stable};
+    use liquidswap_v05::coin_helper;
+    use liquidswap_v05::curves::{Uncorrelated, Stable};
     use test_coin_admin::test_coins::{Self, BTC, USDT, create_coin_admin};
 
     fun register_coins_for_lp_names(

@@ -1,11 +1,11 @@
 #[test_only]
-module liquidswap::emergency_tests {
+module liquidswap_v05::emergency_tests {
     use std::signer;
 
     use aptos_framework::account;
 
-    use liquidswap::emergency;
-    use liquidswap::global_config;
+    use liquidswap_v05::emergency;
+    use liquidswap_v05::global_config;
     use test_helpers::test_pool::{Self, create_liquidswap_admin};
 
     #[test(emergency_acc = @emergency_admin, coin_admin = @test_coin_admin)]
