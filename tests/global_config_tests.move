@@ -1,8 +1,8 @@
 #[test_only]
-module liquidswap::global_config_tests {
-    use liquidswap::global_config;
-    use liquidswap::curves::{Uncorrelated, Stable};
-    use liquidswap::curves;
+module liquidswap_v05::global_config_tests {
+    use liquidswap_v05::global_config;
+    use liquidswap_v05::curves::{Uncorrelated, Stable};
+    use liquidswap_v05::curves;
     use aptos_framework::account;
 
     struct InvalidCurve {}

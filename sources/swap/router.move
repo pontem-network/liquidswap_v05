@@ -1,12 +1,12 @@
 /// Router v2 for Liquidity Pool, similar to Uniswap router.
-module liquidswap::router {
+module liquidswap_v05::router {
     use aptos_framework::coin::{Coin, Self};
 
-    use liquidswap::coin_helper::{Self, supply};
-    use liquidswap::curves;
-    use liquidswap::math;
-    use liquidswap::stable_curve;
-    use liquidswap::liquidity_pool;
+    use liquidswap_v05::coin_helper::{Self, supply};
+    use liquidswap_v05::curves;
+    use liquidswap_v05::math;
+    use liquidswap_v05::stable_curve;
+    use liquidswap_v05::liquidity_pool;
     use liquidswap_lp::lp_coin::LP;
 
     // Errors codes.

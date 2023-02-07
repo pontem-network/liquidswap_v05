@@ -1,5 +1,5 @@
 /// The module used to create user resource account for Liquidswap and deploy LP coins under that account.
-module liquidswap::lp_account {
+module liquidswap_v05::lp_account {
     use std::signer;
 
     use aptos_framework::account::{Self, SignerCapability};
@@ -18,7 +18,7 @@ module liquidswap::lp_account {
         lp_coin_metadata_serialized: vector<u8>,
         lp_coin_code: vector<u8>
     ) {
-        assert!(signer::address_of(liquidswap_admin) == @liquidswap, ERR_NOT_ENOUGH_PERMISSIONS);
+        assert!(signer::address_of(liquidswap_admin) == @liquidswap_v05, ERR_NOT_ENOUGH_PERMISSIONS);
 
         let (lp_acc, signer_cap) =
             account::create_resource_account(liquidswap_admin, b"liquidswap_account_seed");
@@ -33,7 +33,7 @@ module liquidswap::lp_account {
     /// Destroys temporary storage for resource account signer capability and returns signer capability.
     /// It needs for initialization of liquidswap.
     public fun retrieve_signer_cap(liquidswap_admin: &signer): SignerCapability acquires CapabilityStorage {
-        assert!(signer::address_of(liquidswap_admin) == @liquidswap, ERR_NOT_ENOUGH_PERMISSIONS);
+        assert!(signer::address_of(liquidswap_admin) == @liquidswap_v05, ERR_NOT_ENOUGH_PERMISSIONS);
         let CapabilityStorage { signer_cap } =
             move_from<CapabilityStorage>(signer::address_of(liquidswap_admin));
         signer_cap

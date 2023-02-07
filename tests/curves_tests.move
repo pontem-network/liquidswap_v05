@@ -1,6 +1,6 @@
 #[test_only]
-module liquidswap::curves_tests {
-    use liquidswap::curves::{
+module liquidswap_v05::curves_tests {
+    use liquidswap_v05::curves::{
         Self,
         is_stable,
         Uncorrelated,

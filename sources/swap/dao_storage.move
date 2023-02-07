@@ -1,13 +1,13 @@
-module liquidswap::dao_storage {
+module liquidswap_v05::dao_storage {
     use std::signer;
 
     use aptos_framework::account;
     use aptos_framework::coin::{Self, Coin};
     use aptos_std::event;
 
-    use liquidswap::global_config;
+    use liquidswap_v05::global_config;
 
-    friend liquidswap::liquidity_pool;
+    friend liquidswap_v05::liquidity_pool;
 
     // Error codes.
 

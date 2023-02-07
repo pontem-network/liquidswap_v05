@@ -1,13 +1,13 @@
 /// The global config for liquidswap: fees and manager accounts (admins).
-module liquidswap::global_config {
+module liquidswap_v05::global_config {
     use std::signer;
 
     use aptos_std::event::{Self, EventHandle};
     use aptos_framework::account;
 
-    use liquidswap::curves;
+    use liquidswap_v05::curves;
 
-    friend liquidswap::liquidity_pool;
+    friend liquidswap_v05::liquidity_pool;
 
     // Error codes.
 
@@ -56,7 +56,7 @@ module liquidswap::global_config {
 
     /// Initializes admin contracts when initializing the liquidity pool.
     public(friend) fun initialize(liquidswap_admin: &signer) {
-        assert!(signer::address_of(liquidswap_admin) == @liquidswap, ERR_UNREACHABLE);
+        assert!(signer::address_of(liquidswap_admin) == @liquidswap_v05, ERR_UNREACHABLE);
 
         move_to(liquidswap_admin, GlobalConfig {
             dao_admin_address: @dao_admin,
@@ -78,17 +78,17 @@ module liquidswap::global_config {
 
     /// Get DAO admin address.
     public fun get_dao_admin(): address acquires GlobalConfig {
-        assert!(exists<GlobalConfig>(@liquidswap), ERR_CONFIG_DOES_NOT_EXIST);
+        assert!(exists<GlobalConfig>(@liquidswap_v05), ERR_CONFIG_DOES_NOT_EXIST);
 
-        let config = borrow_global<GlobalConfig>(@liquidswap);
+        let config = borrow_global<GlobalConfig>(@liquidswap_v05);
         config.dao_admin_address
     }
 
     /// Set DAO admin account.
     public entry fun set_dao_admin(dao_admin: &signer, new_addr: address) acquires GlobalConfig {
-        assert!(exists<GlobalConfig>(@liquidswap), ERR_CONFIG_DOES_NOT_EXIST);
+        assert!(exists<GlobalConfig>(@liquidswap_v05), ERR_CONFIG_DOES_NOT_EXIST);
 
-        let config = borrow_global_mut<GlobalConfig>(@liquidswap);
+        let config = borrow_global_mut<GlobalConfig>(@liquidswap_v05);
         assert!(config.dao_admin_address == signer::address_of(dao_admin), ERR_NOT_ADMIN);
 
         config.dao_admin_address = new_addr;
@@ -96,17 +96,17 @@ module liquidswap::global_config {
 
     /// Get emergency admin address.
     public fun get_emergency_admin(): address acquires GlobalConfig {
-        assert!(exists<GlobalConfig>(@liquidswap), ERR_CONFIG_DOES_NOT_EXIST);
+        assert!(exists<GlobalConfig>(@liquidswap_v05), ERR_CONFIG_DOES_NOT_EXIST);
 
-        let config = borrow_global<GlobalConfig>(@liquidswap);
+        let config = borrow_global<GlobalConfig>(@liquidswap_v05);
         config.emergency_admin_address
     }
 
     /// Set emergency admin account.
     public entry fun set_emergency_admin(emergency_admin: &signer, new_addr: address) acquires GlobalConfig {
-        assert!(exists<GlobalConfig>(@liquidswap), ERR_CONFIG_DOES_NOT_EXIST);
+        assert!(exists<GlobalConfig>(@liquidswap_v05), ERR_CONFIG_DOES_NOT_EXIST);
 
-        let config = borrow_global_mut<GlobalConfig>(@liquidswap);
+        let config = borrow_global_mut<GlobalConfig>(@liquidswap_v05);
         assert!(config.emergency_admin_address == signer::address_of(emergency_admin), ERR_NOT_ADMIN);
 
         config.emergency_admin_address = new_addr;
@@ -114,17 +114,17 @@ module liquidswap::global_config {
 
     /// Get fee admin address.
     public fun get_fee_admin(): address acquires GlobalConfig {
-        assert!(exists<GlobalConfig>(@liquidswap), ERR_CONFIG_DOES_NOT_EXIST);
+        assert!(exists<GlobalConfig>(@liquidswap_v05), ERR_CONFIG_DOES_NOT_EXIST);
 
-        let config = borrow_global<GlobalConfig>(@liquidswap);
+        let config = borrow_global<GlobalConfig>(@liquidswap_v05);
         config.fee_admin_address
     }
 
     /// Set fee admin account.
     public entry fun set_fee_admin(fee_admin: &signer, new_addr: address) acquires GlobalConfig {
-        assert!(exists<GlobalConfig>(@liquidswap), ERR_CONFIG_DOES_NOT_EXIST);
+        assert!(exists<GlobalConfig>(@liquidswap_v05), ERR_CONFIG_DOES_NOT_EXIST);
 
-        let config = borrow_global_mut<GlobalConfig>(@liquidswap);
+        let config = borrow_global_mut<GlobalConfig>(@liquidswap_v05);
         assert!(config.fee_admin_address == signer::address_of(fee_admin), ERR_NOT_ADMIN);
 
         config.fee_admin_address = new_addr;
@@ -134,9 +134,9 @@ module liquidswap::global_config {
     /// IMPORTANT: use functions in Liquidity Pool module as pool fees could be different from default ones.
     public fun get_default_fee<Curve>(): u64 acquires GlobalConfig {
         curves::assert_valid_curve<Curve>();
-        assert!(exists<GlobalConfig>(@liquidswap), ERR_CONFIG_DOES_NOT_EXIST);
+        assert!(exists<GlobalConfig>(@liquidswap_v05), ERR_CONFIG_DOES_NOT_EXIST);
 
-        let config = borrow_global<GlobalConfig>(@liquidswap);
+        let config = borrow_global<GlobalConfig>(@liquidswap_v05);
         if (curves::is_stable<Curve>()) {
             config.default_stable_fee
         } else if (curves::is_uncorrelated<Curve>()) {
@@ -149,14 +149,14 @@ module liquidswap::global_config {
     /// Set new default fee.
     public entry fun set_default_fee<Curve>(fee_admin: &signer, default_fee: u64) acquires GlobalConfig, EventsStore {
         curves::assert_valid_curve<Curve>();
-        assert!(exists<GlobalConfig>(@liquidswap), ERR_CONFIG_DOES_NOT_EXIST);
+        assert!(exists<GlobalConfig>(@liquidswap_v05), ERR_CONFIG_DOES_NOT_EXIST);
 
-        let config = borrow_global_mut<GlobalConfig>(@liquidswap);
+        let config = borrow_global_mut<GlobalConfig>(@liquidswap_v05);
         assert!(config.fee_admin_address == signer::address_of(fee_admin), ERR_NOT_ADMIN);
 
         assert_valid_fee(default_fee);
 
-        let events_store = borrow_global_mut<EventsStore>(@liquidswap);
+        let events_store = borrow_global_mut<EventsStore>(@liquidswap_v05);
         if (curves::is_stable<Curve>()) {
             config.default_stable_fee = default_fee;
             event::emit_event(
@@ -176,24 +176,24 @@ module liquidswap::global_config {
 
     /// Get default DAO fee.
     public fun get_default_dao_fee(): u64 acquires GlobalConfig {
-        assert!(exists<GlobalConfig>(@liquidswap), ERR_CONFIG_DOES_NOT_EXIST);
+        assert!(exists<GlobalConfig>(@liquidswap_v05), ERR_CONFIG_DOES_NOT_EXIST);
 
-        let config = borrow_global<GlobalConfig>(@liquidswap);
+        let config = borrow_global<GlobalConfig>(@liquidswap_v05);
         config.default_dao_fee
     }
 
     /// Set default DAO fee.
     public entry fun set_default_dao_fee(fee_admin: &signer, default_fee: u64) acquires GlobalConfig, EventsStore {
-        assert!(exists<GlobalConfig>(@liquidswap), ERR_CONFIG_DOES_NOT_EXIST);
+        assert!(exists<GlobalConfig>(@liquidswap_v05), ERR_CONFIG_DOES_NOT_EXIST);
 
-        let config = borrow_global_mut<GlobalConfig>(@liquidswap);
+        let config = borrow_global_mut<GlobalConfig>(@liquidswap_v05);
         assert!(config.fee_admin_address == signer::address_of(fee_admin), ERR_NOT_ADMIN);
 
         assert_valid_dao_fee(default_fee);
 
         config.default_dao_fee = default_fee;
 
-        let event_store = borrow_global_mut<EventsStore>(@liquidswap);
+        let event_store = borrow_global_mut<EventsStore>(@liquidswap_v05);
         event::emit_event(
             &mut event_store.default_dao_fee_handle,
             UpdateDefaultFeeEvent { fee: default_fee }
@@ -217,7 +217,7 @@ module liquidswap::global_config {
 
     #[test_only]
     public fun initialize_for_test() {
-        let liquidswap_admin = aptos_framework::account::create_account_for_test(@liquidswap);
+        let liquidswap_admin = aptos_framework::account::create_account_for_test(@liquidswap_v05);
         initialize(&liquidswap_admin);
     }
 }

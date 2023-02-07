@@ -1,5 +1,5 @@
 /// The `CoinHelper` module contains helper funcs to work with `AptosFramework::Coin` module.
-module liquidswap::coin_helper {
+module liquidswap_v05::coin_helper {
     use std::option;
     use std::string::{Self, String};
 
@@ -7,8 +7,8 @@ module liquidswap::coin_helper {
     use aptos_std::comparator::{Self, Result};
     use aptos_std::type_info;
 
-    use liquidswap::curves::is_stable;
-    use liquidswap::math;
+    use liquidswap_v05::curves::is_stable;
+    use liquidswap_v05::math;
 
     // Errors codes.
 

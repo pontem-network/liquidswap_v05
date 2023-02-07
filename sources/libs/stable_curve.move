@@ -1,5 +1,5 @@
 /// Implements stable curve math.
-module liquidswap::stable_curve {
+module liquidswap_v05::stable_curve {
     /// We take 10^8 as we expect most of the coins to have 6-8 decimals.
     const ONE_E_8: u256 = 100000000;
 

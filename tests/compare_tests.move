@@ -11,11 +11,11 @@ module 0x2::coins_b {
 }
 
 #[test_only]
-module liquidswap::compare_tests {
+module liquidswap_v05::compare_tests {
     use aptos_framework::aptos_coin::AptosCoin;
     use aptos_std::comparator;
 
-    use liquidswap::coin_helper;
+    use liquidswap_v05::coin_helper;
     use test_coin_admin::test_coins::{BTC, USDC, USDT};
 
     #[test]

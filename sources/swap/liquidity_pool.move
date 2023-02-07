@@ -1,6 +1,6 @@
 /// Liquidswap liquidity pool module.
 /// Implements mint/burn liquidity, swap of coins.
-module liquidswap::liquidity_pool {
+module liquidswap_v05::liquidity_pool {
     use std::signer;
 
     use aptos_std::event;
@@ -11,14 +11,14 @@ module liquidswap::liquidity_pool {
     use liquidswap_lp::lp_coin::LP;
     use uq64x64::uq64x64;
 
-    use liquidswap::coin_helper;
-    use liquidswap::curves;
-    use liquidswap::dao_storage;
-    use liquidswap::emergency::{Self, assert_no_emergency};
-    use liquidswap::global_config;
-    use liquidswap::lp_account;
-    use liquidswap::math;
-    use liquidswap::stable_curve;
+    use liquidswap_v05::coin_helper;
+    use liquidswap_v05::curves;
+    use liquidswap_v05::dao_storage;
+    use liquidswap_v05::emergency::{Self, assert_no_emergency};
+    use liquidswap_v05::global_config;
+    use liquidswap_v05::lp_account;
+    use liquidswap_v05::math;
+    use liquidswap_v05::stable_curve;
 
     // Error codes.
 
@@ -83,7 +83,7 @@ module liquidswap::liquidity_pool {
         last_price_y_cumulative: u128,
         lp_mint_cap: coin::MintCapability<LP<X, Y, Curve>>,
         lp_burn_cap: coin::BurnCapability<LP<X, Y, Curve>>,
-        lp_reserved_coins: coin::Coin<LP<X, Y, Curve>>,
+        lp_coins_reserved: coin::Coin<LP<X, Y, Curve>>,
         // Scales are pow(10, token_decimals).
         x_scale: u64,
         y_scale: u64,
@@ -106,7 +106,7 @@ module liquidswap::liquidity_pool {
 
     /// Initializes Liquidswap contracts.
     public entry fun initialize(liquidswap_admin: &signer) {
-        assert!(signer::address_of(liquidswap_admin) == @liquidswap, ERR_NOT_ENOUGH_PERMISSIONS_TO_INITIALIZE);
+        assert!(signer::address_of(liquidswap_admin) == @liquidswap_v05, ERR_NOT_ENOUGH_PERMISSIONS_TO_INITIALIZE);
 
         let signer_cap = lp_account::retrieve_signer_cap(liquidswap_admin);
         move_to(liquidswap_admin, PoolAccountCapability { signer_cap });
@@ -126,7 +126,7 @@ module liquidswap::liquidity_pool {
         curves::assert_valid_curve<Curve>();
         assert!(!exists<LiquidityPool<X, Y, Curve>>(@liquidswap_pool_account), ERR_POOL_EXISTS_FOR_PAIR);
 
-        let pool_cap = borrow_global<PoolAccountCapability>(@liquidswap);
+        let pool_cap = borrow_global<PoolAccountCapability>(@liquidswap_v05);
         let pool_account = account::create_signer_with_capability(&pool_cap.signer_cap);
 
         let (lp_name, lp_symbol) = coin_helper::generate_lp_name_and_symbol<X, Y, Curve>();
@@ -156,7 +156,7 @@ module liquidswap::liquidity_pool {
             last_price_y_cumulative: 0,
             lp_mint_cap,
             lp_burn_cap,
-            lp_reserved_coins: coin::zero(),
+            lp_coins_reserved: coin::zero(),
             x_scale,
             y_scale,
             locked: false,
@@ -213,7 +213,7 @@ module liquidswap::liquidity_pool {
             assert!(initial_liq > MINIMAL_LIQUIDITY, ERR_NOT_ENOUGH_INITIAL_LIQUIDITY);
 
             let lp_reserved_coins = coin::mint<LP<X, Y, Curve>>(MINIMAL_LIQUIDITY, &pool.lp_mint_cap);
-            coin::merge(&mut pool.lp_reserved_coins, lp_reserved_coins);
+            coin::merge(&mut pool.lp_coins_reserved, lp_reserved_coins);
 
             initial_liq - MINIMAL_LIQUIDITY
         } else {
@@ -833,5 +833,12 @@ module liquidswap::liquidity_pool {
         update_oracle(pool, x_reserve, y_reserve);
 
         (pool.last_price_x_cumulative, pool.last_price_y_cumulative, pool.last_block_timestamp)
+    }
+
+    #[test_only]
+    public fun get_reserved_value<X, Y, Curve>(): u64 acquires LiquidityPool {
+        let pool =
+            borrow_global<LiquidityPool<X, Y, curves::Uncorrelated>>(@liquidswap_pool_account);
+        coin::value(&pool.lp_coins_reserved)
     }
 }
