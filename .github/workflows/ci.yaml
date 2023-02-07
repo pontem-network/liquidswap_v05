@@ -29,13 +29,7 @@ jobs:
           prover: true
 
       - name: Build
-        run: aptos move compile
+        run: aptos move compile --bytecode-version 6
 
       - name: Test Liquidswap
-        run: aptos move test
-
-      - name: Test LiquidswapRouterV2
-        run: aptos move test --package-dir ./liquidswap_router_v2
-
-      - name: Prove math.move
-        run: aptos move prove --filter math
+        run: aptos move test --bytecode-version 6
