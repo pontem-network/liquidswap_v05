@@ -3,7 +3,7 @@ module liquidswap_v05::dao_storage {
 
     use aptos_framework::account;
     use aptos_framework::coin::{Self, Coin};
-    use aptos_std::event;
+    use aptos_framework::event;
 
     use liquidswap_v05::global_config;
 

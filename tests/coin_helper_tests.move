@@ -105,8 +105,8 @@ module liquidswap_v05::coin_helper_tests {
             b"USDT"
         );
         let (lp_name, lp_symbol) = generate_lp_name_and_symbol_for_coins<Uncorrelated>();
-        assert!(lp_name == utf8(b"LiquidLP-BTC-USDT-U"), 0);
-        assert!(lp_symbol == utf8(b"BTC-USDT"), 1);
+        assert!(lp_name == utf8(b"LS05 LP-BTC-USDT-U"), 0);
+        assert!(lp_symbol == utf8(b"BTC-USDTU"), 1);
     }
 
     #[test]
@@ -120,8 +120,8 @@ module liquidswap_v05::coin_helper_tests {
             b"USDT"
         );
         let (lp_name, lp_symbol) = generate_lp_name_and_symbol_for_coins<Stable>();
-        assert!(lp_name == utf8(b"LiquidLP-USDC-USDT-S"), 0);
-        assert!(lp_symbol == utf8(b"USDC-USDT*"), 1);
+        assert!(lp_name == utf8(b"LS05 LP-USDC-USDT-S"), 0);
+        assert!(lp_symbol == utf8(b"USDC-USDTS"), 1);
     }
 
     #[test]
@@ -135,7 +135,7 @@ module liquidswap_v05::coin_helper_tests {
             b"USDTSymbol"
         );
         let (lp_name, lp_symbol) = generate_lp_name_and_symbol_for_coins<Stable>();
-        assert!(lp_name == utf8(b"LiquidLP-USDCSymbol-USDTSymbol-S"), 0);
-        assert!(lp_symbol == utf8(b"USDC-USDT*"), 1);
+        assert!(lp_name == utf8(b"LS05 LP-USDCSymbol-USDTSymbol-S"), 0);
+        assert!(lp_symbol == utf8(b"USDC-USDTS"), 1);
     }
 }

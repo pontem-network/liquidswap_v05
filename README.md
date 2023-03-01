@@ -11,6 +11,9 @@ It contains the following changes:
 
 * Native u256 for stable swaps and for `x*y>k` constant formula.
 * Fix for `initial liquidity loss of precision bug.`
+* Updated LP coin symbol and name logic to have difference from v0.5
+
+Changes reviewed by Ottersec team.
 
 ## Documentation
 
