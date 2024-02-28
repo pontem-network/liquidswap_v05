@@ -2,9 +2,8 @@
 module liquidswap_v05::scripts_v3_tests {
     use std::option;
     use std::signer;
-    use aptos_framework::account;
-    use aptos_framework::aptos_account;
 
+    use aptos_framework::account;
     use aptos_framework::coin;
 
     use liquidswap_v05::curves::Uncorrelated;
@@ -111,23 +110,25 @@ module liquidswap_v05::scripts_v3_tests {
                 usdt_coins,
                 10100,
             );
+        coin::register<BTC>(&lp_owner);
+        coin::register<USDT>(&lp_owner);
+        coin::register<LP<BTC, USDT, Uncorrelated>>(&lp_owner);
 
         let lp_owner_addr = signer::address_of(&lp_owner);
-        aptos_account::deposit_coins(lp_owner_addr, lp);
+        coin::deposit(lp_owner_addr, btc);
+        coin::deposit(lp_owner_addr, usdt);
+        coin::deposit(lp_owner_addr, lp);
 
         scripts_v3::remove_liquidity<BTC, USDT, Uncorrelated>(
             &lp_owner,
             10,
-            98,
-            10000,
+            1,
+            100,
         );
 
-        coin::deposit(lp_owner_addr, btc);
-        coin::deposit(lp_owner_addr, usdt);
-
         assert!(coin::balance<LP<BTC, USDT, Uncorrelated>>(lp_owner_addr) == 0, 1);
-        assert!(coin::balance<BTC>(lp_owner_addr) == 101, 2);
-        assert!(coin::balance<USDT>(lp_owner_addr) == 10100, 3);
+        assert!(coin::balance<BTC>(lp_owner_addr) == 1, 2);
+        assert!(coin::balance<USDT>(lp_owner_addr) == 100, 3);
     }
 
     #[test]
