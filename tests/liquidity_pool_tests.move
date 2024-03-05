@@ -40,6 +40,7 @@ module liquidswap_v05::liquidity_pool_tests {
         let liquidswap_admin = create_liquidswap_admin();
         let (liquidswap_pool_acc, _) =
             account::create_resource_account(&liquidswap_admin, b"liquidswap_account_seed");
+        // aptos_std::debug::print(&signer::address_of(&liquidswap_pool_acc));
         assert!(signer::address_of(&liquidswap_pool_acc) == @liquidswap_pool_account, 1);
     }
 

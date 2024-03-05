@@ -36,6 +36,7 @@ module liquidswap_v05::emergency_tests {
         let liquidswap_admin = create_liquidswap_admin();
         let (emergency_acc, _) =
             account::create_resource_account(&liquidswap_admin, b"emergency_account_seed");
+        // aptos_std::debug::print(&signer::address_of(&emergency_acc));
         assert!(signer::address_of(&emergency_acc) == @liquidswap_emergency_account, 1);
     }
 
