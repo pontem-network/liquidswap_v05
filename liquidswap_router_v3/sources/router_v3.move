@@ -1,6 +1,6 @@
 /// Router v3 for Liquidity Pool, similar to Uniswap router.
 /// Improved with `#[view]` functions.
-module liquidswap_v05::router_v3 {
+module ls_periphery::router_v3 {
     use aptos_framework::coin::{Coin, Self};
 
     use liquidswap_v05::coin_helper::{Self, supply};

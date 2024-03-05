@@ -35,4 +35,4 @@ subdir = "aptos-move/framework/aptos-framework"
 
 [dependencies.UQ64x64]
 git = "https://github.com/pontem-network/UQ64x64.git"
-rev = "v0.3.8"
+rev = "v0.3.9"

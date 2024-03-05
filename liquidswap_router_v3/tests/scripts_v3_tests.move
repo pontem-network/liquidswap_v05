@@ -1,5 +1,5 @@
 #[test_only]
-module liquidswap_v05::scripts_v3_tests {
+module ls_periphery::scripts_v3_tests {
     use std::option;
     use std::signer;
 
@@ -8,8 +8,8 @@ module liquidswap_v05::scripts_v3_tests {
 
     use liquidswap_v05::curves::Uncorrelated;
     use liquidswap_v05::liquidity_pool;
-    use liquidswap_v05::router_v3;
-    use liquidswap_v05::scripts_v3;
+    use ls_periphery::router_v3;
+    use ls_periphery::scripts_v3;
     use test_coin_admin::test_coins::{Self, USDT, BTC};
     use test_helpers::test_pool;
     use liquidswap_lp::lp_coin::LP;

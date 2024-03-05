@@ -1,5 +1,5 @@
 #[test_only]
-module liquidswap_v05::router_v3_tests {
+module ls_periphery::router_v3_tests {
     use std::signer;
 
     use aptos_framework::coin;
@@ -8,7 +8,7 @@ module liquidswap_v05::router_v3_tests {
 
     use liquidswap_v05::curves::{Uncorrelated, Stable};
     use liquidswap_v05::liquidity_pool;
-    use liquidswap_v05::router_v3;
+    use ls_periphery::router_v3;
     use test_coin_admin::test_coins::{Self, USDT, BTC, USDC};
     use test_helpers::test_pool;
 

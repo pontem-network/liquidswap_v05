@@ -1,14 +1,14 @@
 /// The current module contains pre-deplopyed scripts v3 for LiquidSwap.
 /// New version doesn't require to register coins before swap and
 /// allows to transfer coins after swap to another account.
-module liquidswap_v05::scripts_v3 {
+module ls_periphery::scripts_v3 {
     use std::option::{Self, Option};
     use std::signer;
 
     use aptos_framework::coin;
     use aptos_framework::aptos_account;
 
-    use liquidswap_v05::router_v3;
+    use ls_periphery::router_v3;
     use liquidswap_lp::lp_coin::LP;
 
     /// Register a new liquidity pool for `X`/`Y` pair.
