@@ -3,7 +3,7 @@ module liquidswap_v05::dao_storage_tests {
     use std::signer;
 
     use aptos_framework::coin;
-    use liquidswap_lp::lp_coin::LP;
+    use liquidswap_lp_v05::lp_coin::LP;
 
     use liquidswap_v05::curves::Uncorrelated;
     use liquidswap_v05::dao_storage;
@@ -57,7 +57,7 @@ module liquidswap_v05::dao_storage_tests {
         dao_storage::deposit_for_test<BTC, USDT, Uncorrelated>(lp_owner_addr, btc_coins, usdt_coins);
     }
 
-    #[test(dao_admin_acc = @dao_admin)]
+    #[test(dao_admin_acc = @dao_admin_v05)]
     fun test_withdraw(dao_admin_acc: signer) {
         let (coin_admin, lp_owner) = test_pool::setup_coins_and_lp_owner();
 
@@ -92,7 +92,7 @@ module liquidswap_v05::dao_storage_tests {
         test_coins::burn(&coin_admin, y0);
     }
 
-    #[test(dao_admin_acc = @dao_admin)]
+    #[test(dao_admin_acc = @dao_admin_v05)]
     #[expected_failure(abort_code = 65542, location = aptos_framework::coin)]
     fun test_withdraw_fail_if_more_deposited(dao_admin_acc: signer) {
         let (coin_admin, lp_owner) = test_pool::setup_coins_and_lp_owner();
@@ -136,7 +136,7 @@ module liquidswap_v05::dao_storage_tests {
         test_coins::burn(&coin_admin, y);
     }
 
-    #[test(dao_admin_acc = @dao_admin)]
+    #[test(dao_admin_acc = @dao_admin_v05)]
     fun test_split_third_of_fees_into_dao_storage_account(dao_admin_acc: signer) {
         let (coin_admin, lp_owner) = test_pool::setup_coins_and_lp_owner();
 
@@ -164,12 +164,12 @@ module liquidswap_v05::dao_storage_tests {
         assert!(x_res == 100999, 2);
         assert!(y_res == 99040, 3);
 
-        let (dao_x, dao_y) = dao_storage::get_storage_size<BTC, USDT, Uncorrelated>(@liquidswap_pool_account);
+        let (dao_x, dao_y) = dao_storage::get_storage_size<BTC, USDT, Uncorrelated>(@liquidswap_pool_account_v05);
         assert!(dao_x == 1, 4);
         assert!(dao_y == 0, 5);
 
         let (x, y) =
-            dao_storage::withdraw<BTC, USDT, Uncorrelated>(&dao_admin_acc, @liquidswap_pool_account, 1, 0);
+            dao_storage::withdraw<BTC, USDT, Uncorrelated>(&dao_admin_acc, @liquidswap_pool_account_v05, 1, 0);
         assert!(coin::value(&x) == 1, 6);
         assert!(coin::value(&y) == 0, 7);
 
