@@ -3,7 +3,7 @@ module liquidswap_v05::flashloan_tests {
     use std::signer;
 
     use aptos_framework::coin;
-    use liquidswap_lp::lp_coin::LP;
+    use liquidswap_lp_v05::lp_coin::LP;
 
     use liquidswap_v05::curves::{Uncorrelated, Stable};
     use liquidswap_v05::emergency;
@@ -335,7 +335,7 @@ module liquidswap_v05::flashloan_tests {
         assert!(y_res == 292999999999901, 3);
     }
 
-    #[test(emergency_acc = @emergency_admin)]
+    #[test(emergency_acc = @emergency_admin_v05)]
     #[expected_failure(abort_code = emergency::ERR_EMERGENCY)]
     fun test_fail_if_emergency(emergency_acc: signer) {
         let (_, _) = register_pool_with_liquidity(100000000, 28000000000);
@@ -538,7 +538,7 @@ module liquidswap_v05::flashloan_tests {
         test_coins::burn(&coin_admin, usdt_coins);
     }
 
-    #[test(fee_admin = @fee_admin)]
+    #[test(fee_admin = @fee_admin_v05)]
     #[expected_failure(abort_code = liquidity_pool::ERR_POOL_IS_LOCKED)]
     fun test_set_fee_fail_if_pool_is_locked(fee_admin: signer) {
         let (coin_admin, _) = register_pool_with_liquidity(100000000, 28000000000);
@@ -557,7 +557,7 @@ module liquidswap_v05::flashloan_tests {
         test_coins::burn(&coin_admin, usdt_coins);
     }
 
-    #[test(fee_admin = @fee_admin)]
+    #[test(fee_admin = @fee_admin_v05)]
     #[expected_failure(abort_code = liquidity_pool::ERR_POOL_IS_LOCKED)]
     fun test_set_dao_fee_fail_if_pool_is_locked(fee_admin: signer) {
         let (coin_admin, _) = register_pool_with_liquidity(100000000, 28000000000);

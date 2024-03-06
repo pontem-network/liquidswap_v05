@@ -5,7 +5,7 @@ module liquidswap_v05::scripts {
     use aptos_framework::coin;
 
     use liquidswap_v05::router;
-    use liquidswap_lp::lp_coin::LP;
+    use liquidswap_lp_v05::lp_coin::LP;
 
     /// Register a new liquidity pool for `X`/`Y` pair.
     ///

@@ -7,7 +7,7 @@ module liquidswap_v05::liquidity_pool_tests {
     use aptos_framework::account;
     use aptos_framework::coin;
     use aptos_framework::timestamp;
-    use liquidswap_lp::lp_coin::LP;
+    use liquidswap_lp_v05::lp_coin::LP;
 
     use liquidswap_v05::coin_helper::supply;
     use liquidswap_v05::curves::{Uncorrelated, Stable};
@@ -40,12 +40,12 @@ module liquidswap_v05::liquidity_pool_tests {
         let liquidswap_admin = create_liquidswap_admin();
         let (liquidswap_pool_acc, _) =
             account::create_resource_account(&liquidswap_admin, b"liquidswap_account_seed");
-        assert!(signer::address_of(&liquidswap_pool_acc) == @liquidswap_pool_account, 1);
+        assert!(signer::address_of(&liquidswap_pool_acc) == @liquidswap_pool_account_v05, 1);
     }
 
     #[test]
     fun test_liquidswap_lp_and_liquidswap_pool_account_are_the_same() {
-        assert!(@liquidswap_lp == @liquidswap_pool_account, 1);
+        assert!(@liquidswap_lp_v05 == @liquidswap_pool_account_v05, 1);
     }
 
     #[test]
@@ -88,7 +88,7 @@ module liquidswap_v05::liquidity_pool_tests {
         assert!(!liquidity_pool::is_pool_locked<BTC, USDT, Uncorrelated>(), 25);
     }
 
-    #[test(emergency_acc = @emergency_admin)]
+    #[test(emergency_acc = @emergency_admin_v05)]
     #[expected_failure(abort_code = emergency::ERR_EMERGENCY)]
     fun test_create_pool_emergency_fails(emergency_acc: signer) {
         let (_, lp_owner) = test_pool::setup_coins_and_lp_owner();
@@ -273,7 +273,7 @@ module liquidswap_v05::liquidity_pool_tests {
         assert!(y_res == usdt_liq_val, 3);
     }
 
-    #[test(emergency_acc = @emergency_admin)]
+    #[test(emergency_acc = @emergency_admin_v05)]
     #[expected_failure(abort_code = emergency::ERR_EMERGENCY)]
     fun test_add_liquidity_emergency_stop_fails(emergency_acc: signer) {
         let (coin_admin, lp_owner) = setup_btc_usdt_pool();
@@ -485,7 +485,7 @@ module liquidswap_v05::liquidity_pool_tests {
         test_coins::burn(&coin_admin, usdt_return);
     }
 
-    #[test(emergency_acc = @emergency_admin)]
+    #[test(emergency_acc = @emergency_admin_v05)]
     fun test_emergency_exit(emergency_acc: signer) {
         let (coin_admin, _) = setup_btc_usdt_pool();
 
@@ -537,7 +537,7 @@ module liquidswap_v05::liquidity_pool_tests {
         test_coins::burn(&coin_admin, usdt_coins);
     }
 
-    #[test(emergency_acc = @emergency_admin)]
+    #[test(emergency_acc = @emergency_admin_v05)]
     #[expected_failure(abort_code = emergency::ERR_EMERGENCY)]
     fun test_swap_coins_emergency_fails(emergency_acc: signer) {
         let (coin_admin, lp_owner) = setup_btc_usdt_pool();
@@ -1112,7 +1112,7 @@ module liquidswap_v05::liquidity_pool_tests {
 
     // Getters.
 
-    #[test(emergency_acc = @emergency_admin)]
+    #[test(emergency_acc = @emergency_admin_v05)]
     #[expected_failure(abort_code = emergency::ERR_EMERGENCY)]
     fun test_get_reserves_emergency_fails(emergency_acc: signer) {
         let (_, _) = setup_btc_usdt_pool();
@@ -1122,7 +1122,7 @@ module liquidswap_v05::liquidity_pool_tests {
         let (_, _) = liquidity_pool::get_reserves_size<BTC, USDT, Uncorrelated>();
     }
 
-    #[test(emergency_acc = @emergency_admin)]
+    #[test(emergency_acc = @emergency_admin_v05)]
     #[expected_failure(abort_code = emergency::ERR_EMERGENCY)]
     fun test_get_cumulative_price_emergency_fails(emergency_acc: signer) {
         let (_, _) = setup_btc_usdt_pool();
@@ -1283,7 +1283,7 @@ module liquidswap_v05::liquidity_pool_tests {
         test_coins::burn(&coin_admin, usdt_earned_initial);
     }
 
-    #[test(emergency_acc = @emergency_admin)]
+    #[test(emergency_acc = @emergency_admin_v05)]
     fun test_end_to_end_emergency(emergency_acc: signer) {
         let (coin_admin, _) = setup_btc_usdt_pool();
 
@@ -1855,7 +1855,7 @@ module liquidswap_v05::liquidity_pool_tests {
         let _ = liquidity_pool::get_fee<BTC, USDT, Uncorrelated>();
     }
 
-    #[test(fee_admin = @fee_admin)]
+    #[test(fee_admin = @fee_admin_v05)]
     #[expected_failure(abort_code = liquidity_pool::ERR_WRONG_PAIR_ORDERING)]
     fun test_set_fee_fail_if_pair_is_not_sorted(fee_admin: signer) {
         let (_, lp_owner) = test_pool::setup_coins_and_lp_owner();
@@ -1863,7 +1863,7 @@ module liquidswap_v05::liquidity_pool_tests {
         liquidity_pool::set_fee<USDT, BTC, Uncorrelated>(&fee_admin, 10);
     }
 
-    #[test(fee_admin = @fee_admin)]
+    #[test(fee_admin = @fee_admin_v05)]
     #[expected_failure(abort_code = liquidity_pool::ERR_POOL_DOES_NOT_EXIST)]
     fun test_set_fee_fail_if_pool_does_not_exists(fee_admin: signer) {
         liquidity_pool::set_fee<BTC, USDT, Uncorrelated>(&fee_admin, 10);
@@ -1877,7 +1877,7 @@ module liquidswap_v05::liquidity_pool_tests {
         liquidity_pool::set_fee<BTC, USDT, Uncorrelated>(&coin_admin, 10);
     }
 
-    #[test(fee_admin = @fee_admin)]
+    #[test(fee_admin = @fee_admin_v05)]
     #[expected_failure(abort_code = global_config::ERR_INVALID_FEE)]
     fun test_set_fee_fail_if_invalid_amount_of_fee(fee_admin: signer) {
         let (_, lp_owner) = test_pool::setup_coins_and_lp_owner();
@@ -1899,7 +1899,7 @@ module liquidswap_v05::liquidity_pool_tests {
         let _ = liquidity_pool::get_dao_fee<BTC, USDT, Uncorrelated>();
     }
 
-    #[test(dao_admin = @dao_admin)]
+    #[test(dao_admin = @dao_admin_v05)]
     #[expected_failure(abort_code = liquidity_pool::ERR_WRONG_PAIR_ORDERING)]
     fun test_set_dao_fee_fail_if_pair_is_not_sorted(dao_admin: signer) {
         let (_, lp_owner) = test_pool::setup_coins_and_lp_owner();
@@ -1907,7 +1907,7 @@ module liquidswap_v05::liquidity_pool_tests {
         liquidity_pool::set_dao_fee<USDT, BTC, Uncorrelated>(&dao_admin, 10);
     }
 
-    #[test(dao_admin = @dao_admin)]
+    #[test(dao_admin = @dao_admin_v05)]
     #[expected_failure(abort_code = liquidity_pool::ERR_POOL_DOES_NOT_EXIST)]
     fun test_set_dao_fee_fail_if_pool_does_not_exists(dao_admin: signer) {
         liquidity_pool::set_dao_fee<BTC, USDT, Uncorrelated>(&dao_admin, 10);
@@ -1921,7 +1921,7 @@ module liquidswap_v05::liquidity_pool_tests {
         liquidity_pool::set_dao_fee<BTC, USDT, Uncorrelated>(&coin_admin, 10);
     }
 
-    #[test(fee_admin = @fee_admin)]
+    #[test(fee_admin = @fee_admin_v05)]
     #[expected_failure(abort_code = global_config::ERR_INVALID_FEE)]
     fun test_set_dao_fee_fail_if_invalid_amount_of_fee(fee_admin: signer) {
         let (_, lp_owner) = test_pool::setup_coins_and_lp_owner();
@@ -1936,7 +1936,7 @@ module liquidswap_v05::liquidity_pool_tests {
         let (_, _) = liquidity_pool::get_fees_config<USDT, BTC, Uncorrelated>();
     }
 
-    #[test(fee_admin = @fee_admin, dao_admin = @dao_admin)]
+    #[test(fee_admin = @fee_admin_v05, dao_admin = @dao_admin_v05)]
     fun test_get_fee_config(fee_admin: signer, dao_admin: signer) {
         let (_, _) = setup_btc_usdt_pool();
         let (fee, d) = liquidity_pool::get_fees_config<BTC, USDT, Uncorrelated>();
@@ -1968,7 +1968,7 @@ module liquidswap_v05::liquidity_pool_tests {
         assert!(fee == 30, 9);
     }
 
-    #[test(fee_admin = @fee_admin, dao_admin = @dao_admin)]
+    #[test(fee_admin = @fee_admin_v05, dao_admin = @dao_admin_v05)]
     fun test_get_stable_fee_config(fee_admin: signer, dao_admin: signer) {
         let (_, _) = setup_usdc_usdt_pool();
         let (fee, d) = liquidity_pool::get_fees_config<USDC, USDT, Stable>();
@@ -2000,7 +2000,7 @@ module liquidswap_v05::liquidity_pool_tests {
         assert!(fee == 6, 9);
     }
 
-    #[test(fee_admin = @fee_admin, dao_admin = @dao_admin)]
+    #[test(fee_admin = @fee_admin_v05, dao_admin = @dao_admin_v05)]
     fun test_dao_fee_config(fee_admin: signer, dao_admin: signer) {
         let (_, _) = setup_btc_usdt_pool();
         let fee = liquidity_pool::get_dao_fee<BTC, USDT, Uncorrelated>();
@@ -2020,7 +2020,7 @@ module liquidswap_v05::liquidity_pool_tests {
         assert!(fee == 30, 3);
     }
 
-    #[test(fee_admin = @fee_admin, dao_admin = @dao_admin)]
+    #[test(fee_admin = @fee_admin_v05, dao_admin = @dao_admin_v05)]
     fun test_get_dao_fees_config(fee_admin: signer, dao_admin: signer) {
         let (_, _) = setup_btc_usdt_pool();
         let (fee, d) = liquidity_pool::get_dao_fees_config<BTC, USDT, Uncorrelated>();
@@ -2056,7 +2056,7 @@ module liquidswap_v05::liquidity_pool_tests {
         let (_fee, _d) = liquidity_pool::get_dao_fees_config<USDT, BTC, Uncorrelated>();
     }
 
-    #[test(fee_admin = @fee_admin)]
+    #[test(fee_admin = @fee_admin_v05)]
     fun test_pool_with_custom_default_fee(fee_admin: signer) {
         let (_, lp_owner) = test_pool::setup_coins_and_lp_owner();
 
@@ -2074,7 +2074,7 @@ module liquidswap_v05::liquidity_pool_tests {
         assert!(dao_fee == 66, 1);
     }
 
-    #[test(fee_admin = @fee_admin)]
+    #[test(fee_admin = @fee_admin_v05)]
     fun test_stable_pool_with_custom_default_fee(fee_admin: signer) {
         let (_, lp_owner) = test_pool::setup_coins_and_lp_owner();
 
@@ -2092,7 +2092,7 @@ module liquidswap_v05::liquidity_pool_tests {
         assert!(dao_fee == 66, 1);
     }
 
-    #[test(fee_admin = @fee_admin)]
+    #[test(fee_admin = @fee_admin_v05)]
     fun test_swap_coins_with_min_fees(fee_admin: signer) {
         let (coin_admin, lp_owner) = test_pool::setup_coins_and_lp_owner();
 
@@ -2122,7 +2122,7 @@ module liquidswap_v05::liquidity_pool_tests {
         test_coins::burn(&coin_admin, usdt_coins);
     }
 
-    #[test(fee_admin = @fee_admin)]
+    #[test(fee_admin = @fee_admin_v05)]
     fun test_swap_coins_with_max_fees(fee_admin: signer) {
         let (coin_admin, lp_owner) = test_pool::setup_coins_and_lp_owner();
 
@@ -2152,7 +2152,7 @@ module liquidswap_v05::liquidity_pool_tests {
         test_coins::burn(&coin_admin, usdt_coins);
     }
 
-    #[test(fee_admin = @fee_admin)]
+    #[test(fee_admin = @fee_admin_v05)]
     fun test_swap_coins_with_min_fees_for_stable_curve(fee_admin: signer) {
         let (coin_admin, lp_owner) = test_pool::setup_coins_and_lp_owner();
 
@@ -2182,7 +2182,7 @@ module liquidswap_v05::liquidity_pool_tests {
         test_coins::burn(&coin_admin, usdt_coins);
     }
 
-    #[test(fee_admin = @fee_admin)]
+    #[test(fee_admin = @fee_admin_v05)]
     fun test_swap_coins_with_max_fees_for_stable_curve(fee_admin: signer) {
         let (coin_admin, lp_owner) = test_pool::setup_coins_and_lp_owner();
 

@@ -10,7 +10,7 @@ module liquidswap_v05::scripts_tests {
     use liquidswap_v05::scripts;
     use test_coin_admin::test_coins::{Self, USDT, BTC};
     use test_helpers::test_pool;
-    use liquidswap_lp::lp_coin::LP;
+    use liquidswap_lp_v05::lp_coin::LP;
 
     fun register_pool_with_existing_liquidity(x_val: u64, y_val: u64): (signer, signer) {
         let (coin_admin, lp_owner) = test_pool::setup_coins_and_lp_owner();

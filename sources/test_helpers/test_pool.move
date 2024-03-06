@@ -5,7 +5,7 @@ module test_helpers::test_pool {
     use aptos_framework::account;
     use aptos_framework::coin::{Self, Coin};
     use aptos_framework::genesis;
-    use liquidswap_lp::lp_coin::LP;
+    use liquidswap_lp_v05::lp_coin::LP;
 
     use liquidswap_v05::liquidity_pool;
     use liquidswap_v05::lp_account;
