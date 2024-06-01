@@ -60,12 +60,12 @@ module liquidswap_v05::emergency {
         assert!(account_addr == global_config::get_emergency_admin(), ERR_NO_PERMISSIONS);
         assert!(is_emergency(), ERR_NOT_EMERGENCY);
 
-        let IsEmergency {} = move_from<IsEmergency>(@liquidswap_emergency_account);
+        let IsEmergency {} = move_from<IsEmergency>(@liquidswap_emergency_account_v05);
     }
 
     /// Get if it's paused or not.
     public fun is_emergency(): bool {
-        exists<IsEmergency>(@liquidswap_emergency_account)
+        exists<IsEmergency>(@liquidswap_emergency_account_v05)
     }
 
     /// Would abort if currently paused.
@@ -75,7 +75,7 @@ module liquidswap_v05::emergency {
 
     /// Get if it's disabled or not.
     public fun is_disabled(): bool {
-        exists<IsDisabled>(@liquidswap_emergency_account)
+        exists<IsDisabled>(@liquidswap_emergency_account_v05)
     }
 
     /// Disable condition forever.

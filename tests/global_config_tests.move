@@ -8,20 +8,20 @@ module liquidswap_v05::global_config_tests {
     struct InvalidCurve {}
 
     fun fee_admin(): signer {
-        account::create_account_for_test(@fee_admin)
+        account::create_account_for_test(@fee_admin_v05)
     }
 
-    #[test(dao_admin = @dao_admin, test_coin_admin = @test_coin_admin)]
+    #[test(dao_admin = @dao_admin_v05, test_coin_admin = @test_coin_admin)]
     fun test_dao_admin(dao_admin: signer, test_coin_admin: signer) {
         global_config::initialize_for_test();
 
-        assert!(global_config::get_dao_admin() == @dao_admin, 0);
+        assert!(global_config::get_dao_admin() == @dao_admin_v05, 0);
 
         global_config::set_dao_admin(&dao_admin, @test_coin_admin);
         assert!(global_config::get_dao_admin() == @test_coin_admin, 1);
 
-        global_config::set_dao_admin(&test_coin_admin, @dao_admin);
-        assert!(global_config::get_dao_admin() == @dao_admin, 2);
+        global_config::set_dao_admin(&test_coin_admin, @dao_admin_v05);
+        assert!(global_config::get_dao_admin() == @dao_admin_v05, 2);
     }
 
     #[test]
@@ -30,13 +30,13 @@ module liquidswap_v05::global_config_tests {
         global_config::get_dao_admin();
     }
 
-    #[test(dao_admin = @dao_admin)]
+    #[test(dao_admin = @dao_admin_v05)]
     #[expected_failure(abort_code = global_config::ERR_CONFIG_DOES_NOT_EXIST)]
     fun test_set_dao_admin_fail_if_config_is_not_initialized(dao_admin: signer) {
         global_config::set_dao_admin(&dao_admin, @test_coin_admin);
     }
 
-    #[test(dao_admin = @dao_admin)]
+    #[test(dao_admin = @dao_admin_v05)]
     #[expected_failure(abort_code = global_config::ERR_NOT_ADMIN)]
     fun test_set_dao_admin_fail_if_user_is_not_dao_admin(dao_admin: signer) {
         global_config::initialize_for_test();
@@ -47,17 +47,17 @@ module liquidswap_v05::global_config_tests {
         global_config::set_dao_admin(&dao_admin, @test_coin_admin);
     }
 
-    #[test(emergency_admin = @emergency_admin, test_coin_admin = @test_coin_admin)]
+    #[test(emergency_admin = @emergency_admin_v05, test_coin_admin = @test_coin_admin)]
     fun test_emergency_admin(emergency_admin: signer, test_coin_admin: signer) {
         global_config::initialize_for_test();
 
-        assert!(global_config::get_emergency_admin() == @emergency_admin, 0);
+        assert!(global_config::get_emergency_admin() == @emergency_admin_v05, 0);
 
         global_config::set_emergency_admin(&emergency_admin, @test_coin_admin);
         assert!(global_config::get_emergency_admin() == @test_coin_admin, 1);
 
-        global_config::set_emergency_admin(&test_coin_admin, @emergency_admin);
-        assert!(global_config::get_emergency_admin() == @emergency_admin, 2);
+        global_config::set_emergency_admin(&test_coin_admin, @emergency_admin_v05);
+        assert!(global_config::get_emergency_admin() == @emergency_admin_v05, 2);
     }
 
     #[test]
@@ -66,13 +66,13 @@ module liquidswap_v05::global_config_tests {
         global_config::get_emergency_admin();
     }
 
-    #[test(emergency_admin = @emergency_admin)]
+    #[test(emergency_admin = @emergency_admin_v05)]
     #[expected_failure(abort_code = global_config::ERR_CONFIG_DOES_NOT_EXIST)]
     fun test_set_emergency_admin_fail_if_config_is_not_initialized(emergency_admin: signer) {
         global_config::set_emergency_admin(&emergency_admin, @test_coin_admin);
     }
 
-    #[test(emergency_admin = @emergency_admin)]
+    #[test(emergency_admin = @emergency_admin_v05)]
     #[expected_failure(abort_code = global_config::ERR_NOT_ADMIN)]
     fun test_set_emergency_admin_fail_if_user_is_not_emergency_admin(emergency_admin: signer) {
         global_config::initialize_for_test();
@@ -83,17 +83,17 @@ module liquidswap_v05::global_config_tests {
         global_config::set_emergency_admin(&emergency_admin, @test_coin_admin);
     }
 
-    #[test(fee_admin = @fee_admin, test_coin_admin = @test_coin_admin)]
+    #[test(fee_admin = @fee_admin_v05, test_coin_admin = @test_coin_admin)]
     fun test_fee_admin(fee_admin: signer, test_coin_admin: signer) {
         global_config::initialize_for_test();
 
-        assert!(global_config::get_fee_admin() == @fee_admin, 0);
+        assert!(global_config::get_fee_admin() == @fee_admin_v05, 0);
 
         global_config::set_fee_admin(&fee_admin, @test_coin_admin);
         assert!(global_config::get_fee_admin() == @test_coin_admin, 1);
 
-        global_config::set_fee_admin(&test_coin_admin, @fee_admin);
-        assert!(global_config::get_fee_admin() == @fee_admin, 2);
+        global_config::set_fee_admin(&test_coin_admin, @fee_admin_v05);
+        assert!(global_config::get_fee_admin() == @fee_admin_v05, 2);
     }
 
     #[test]
@@ -102,13 +102,13 @@ module liquidswap_v05::global_config_tests {
         global_config::get_fee_admin();
     }
 
-    #[test(fee_admin = @fee_admin)]
+    #[test(fee_admin = @fee_admin_v05)]
     #[expected_failure(abort_code = global_config::ERR_CONFIG_DOES_NOT_EXIST)]
     fun test_set_fee_admin_fail_if_config_is_not_initialized(fee_admin: signer) {
         global_config::set_fee_admin(&fee_admin, @test_coin_admin);
     }
 
-    #[test(fee_admin = @fee_admin)]
+    #[test(fee_admin = @fee_admin_v05)]
     #[expected_failure(abort_code = global_config::ERR_NOT_ADMIN)]
     fun test_set_fee_admin_fail_if_user_is_not_fee_admin(fee_admin: signer) {
         global_config::initialize_for_test();
@@ -119,7 +119,7 @@ module liquidswap_v05::global_config_tests {
         global_config::set_fee_admin(&fee_admin, @test_coin_admin);
     }
 
-    #[test(fee_admin = @fee_admin)]
+    #[test(fee_admin = @fee_admin_v05)]
     fun test_default_fee(fee_admin: signer) {
         global_config::initialize_for_test();
 
@@ -148,19 +148,19 @@ module liquidswap_v05::global_config_tests {
         global_config::get_default_dao_fee();
     }
 
-    #[test(fee_admin = @fee_admin)]
+    #[test(fee_admin = @fee_admin_v05)]
     #[expected_failure(abort_code = global_config::ERR_CONFIG_DOES_NOT_EXIST)]
     fun test_set_default_fee_fail_if_config_is_not_initialized(fee_admin: signer) {
         global_config::set_default_fee<Uncorrelated>(&fee_admin, 20);
     }
 
-    #[test(dao_admin = @dao_admin)]
+    #[test(dao_admin = @dao_admin_v05)]
     #[expected_failure(abort_code = global_config::ERR_CONFIG_DOES_NOT_EXIST)]
     fun test_set_default_dao_fee_fail_if_config_is_not_initialized(dao_admin: signer) {
         global_config::set_default_dao_fee(&dao_admin, 20);
     }
 
-    #[test(fee_admin = @fee_admin)]
+    #[test(fee_admin = @fee_admin_v05)]
     #[expected_failure(abort_code = global_config::ERR_NOT_ADMIN)]
     fun test_set_default_fee_fail_if_user_is_not_fee_admin(fee_admin: signer) {
         global_config::initialize_for_test();
@@ -171,7 +171,7 @@ module liquidswap_v05::global_config_tests {
         global_config::set_default_fee<Uncorrelated>(&fee_admin, 20);
     }
 
-    #[test(fee_admin = @fee_admin)]
+    #[test(fee_admin = @fee_admin_v05)]
     #[expected_failure(abort_code = global_config::ERR_NOT_ADMIN)]
     fun test_set_default_dao_fee_fail_if_user_is_not_fee_admin(fee_admin: signer) {
         global_config::initialize_for_test();
@@ -182,7 +182,7 @@ module liquidswap_v05::global_config_tests {
         global_config::set_default_dao_fee(&fee_admin, 20);
     }
 
-    #[test(fee_admin = @fee_admin)]
+    #[test(fee_admin = @fee_admin_v05)]
     #[expected_failure(abort_code = global_config::ERR_INVALID_FEE)]
     fun test_set_default_fee_fail_if_invalid_amount_of_fee(fee_admin: signer) {
         global_config::initialize_for_test();
@@ -190,7 +190,7 @@ module liquidswap_v05::global_config_tests {
         global_config::set_default_fee<Uncorrelated>(&fee_admin, 101);
     }
 
-    #[test(fee_admin = @fee_admin)]
+    #[test(fee_admin = @fee_admin_v05)]
     #[expected_failure(abort_code = global_config::ERR_INVALID_FEE)]
     fun test_set_default_dao_fee_fail_if_invalid_amount_of_fee(fee_admin: signer) {
         global_config::initialize_for_test();

@@ -7,7 +7,7 @@ module liquidswap_v05::router {
     use liquidswap_v05::math;
     use liquidswap_v05::stable_curve;
     use liquidswap_v05::liquidity_pool;
-    use liquidswap_lp::lp_coin::LP;
+    use liquidswap_lp_v05::lp_coin::LP;
 
     // Errors codes.
 
