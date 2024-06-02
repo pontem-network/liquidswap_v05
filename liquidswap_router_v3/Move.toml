@@ -1,0 +1,10 @@
+[package]
+name = "LiquidswapRouterV3"
+version = "3.0.0"
+upgrade_policy = "immutable"
+
+[addresses]
+ls_periphery = "0x2c8763727787402fd9d1db37f1a267cae0db707cb6d5193b84aaddc14c3b0257"
+
+[dependencies.Liquidswapv05]
+local = ".."
