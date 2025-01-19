@@ -4,6 +4,7 @@ module test_helpers::test_pool {
 
     use aptos_framework::account;
     use aptos_framework::coin::{Self, Coin};
+    use aptos_framework::fungible_asset::FungibleAsset;
     use aptos_framework::genesis;
     use liquidswap_lp::lp_coin::LP;
 
@@ -41,19 +42,19 @@ module test_helpers::test_pool {
         liquidity_pool::initialize(&liquidswap_admin);
     }
 
-    public fun setup_coins_and_lp_owner(): (signer, signer) {
+    public fun setup_fa_and_lp_owner(): (signer, signer) {
         genesis::setup();
 
         initialize_liquidity_pool();
 
-        let coin_admin = test_coins::create_admin_with_coins();
+        let fa_admin = test_coins::create_admin_with_fas();
         let lp_owner = create_lp_owner();
-        (coin_admin, lp_owner)
+        (fa_admin, lp_owner)
     }
 
-    public fun mint_liquidity<X, Y, Curve>(lp_owner: &signer, coin_x: Coin<X>, coin_y: Coin<Y>): u64 {
+    public fun mint_liquidity<X, Y, Curve>(lp_owner: &signer, fa_x: FungibleAsset, fa_y: FungibleAsset): u64 {
         let lp_owner_addr = signer::address_of(lp_owner);
-        let lp_coins = liquidity_pool::mint<X, Y, Curve>(coin_x, coin_y);
+        let lp_coins = liquidity_pool::mint<X, Y, Curve>(fa_x, fa_y);
         let lp_coins_val = coin::value(&lp_coins);
         if (!coin::is_account_registered<LP<X, Y, Curve>>(lp_owner_addr)) {
             coin::register<LP<X, Y, Curve>>(lp_owner);
