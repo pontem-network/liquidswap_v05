@@ -132,13 +132,13 @@ module liquidswap_v05::scripts {
         x_metadata: Object<Metadata>,
         y_metadata: Object<Metadata>,
     ) {
+        // todo: metadata read here
         let fa_x = primary_fungible_store::withdraw(account, x_metadata, fa_val);
 
         let fa_y =
             router::swap_exact_coin_for_coin<X, Y, Curve>(
                 fa_x,
                 fa_out_min_val,
-                x_metadata,
                 y_metadata,
             );
 
@@ -157,14 +157,14 @@ module liquidswap_v05::scripts {
         x_metadata: Object<Metadata>,
         y_metadata: Object<Metadata>,
     ) {
+        // todo: metadata read here
         let fa_x = primary_fungible_store::withdraw(account, x_metadata, fa_val_max);
 
         let (fa_x, fa_y) =
             router::swap_coin_for_exact_coin<X, Y, Curve>(
                 fa_x,
                 fa_out,
-                x_metadata,
-                y_metadata
+                y_metadata,
             );
 
         let account_addr = signer::address_of(account);
@@ -184,13 +184,13 @@ module liquidswap_v05::scripts {
         x_metadata: Object<Metadata>,
         y_metadata: Object<Metadata>,
     ) {
+        // todo: metadata read here
         let fa_x = primary_fungible_store::withdraw(account, x_metadata, fa_in);
 
         let fa_y =
             router::swap_coin_for_coin_unchecked<X, Y, Curve>(
                 fa_x,
                 fa_out,
-                x_metadata,
                 y_metadata,
             );
 
