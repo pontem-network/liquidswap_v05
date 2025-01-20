@@ -10,9 +10,10 @@ module liquidswap_v05::scripts {
     use liquidswap_v05::router;
     use liquidswap_lp::lp_coin::LP;
 
-    // todo: upd description
     /// Register a new liquidity pool for `X`/`Y` pair.
-    ///
+    /// * `account` - pool creator signer.
+    /// * `x_metadata` - metadata object of FungibleAsset X.
+    /// * `y_metadata` - metadata object of FungibleAsset Y.
     /// Note: X, Y generic coin parameters must be sorted.
     public entry fun register_pool<X, Y, Curve>(
         account: &signer,
@@ -22,12 +23,14 @@ module liquidswap_v05::scripts {
         router::register_pool<X, Y, Curve>(account, metadata_x, metadata_y);
     }
 
-    // todo: upd description
     /// Register a new liquidity pool `X`/`Y` and immediately add liquidity.
-    /// * `coin_x_val` - amount of coin `X` to add as liquidity.
-    /// * `coin_x_val_min` - minimum amount of coin `X` to add as liquidity (slippage).
-    /// * `coin_y_val` - minimum amount of coin `Y` to add as liquidity.
-    /// * `coin_y_val_min` - minimum amount of coin `Y` to add as liquidity (slippage).
+    /// * `account` - pool creator signer.
+    /// * `fa_x_val` - amount of FA `X` to add as liquidity.
+    /// * `fa_x_val_min` - minimum amount of FA `X` to add as liquidity (slippage).
+    /// * `fa_y_val` - minimum amount of FA `Y` to add as liquidity.
+    /// * `fa_y_val_min` - minimum amount of FA `Y` to add as liquidity (slippage).
+    /// * `x_metadata` - metadata object of FungibleAsset X.
+    /// * `y_metadata` - metadata object of FungibleAsset Y.
     ///
     /// Note: X, Y generic coin parameters must be sorted.
     public entry fun register_pool_and_add_liquidity<X, Y, Curve>(
@@ -51,12 +54,14 @@ module liquidswap_v05::scripts {
         );
     }
 
-    // todo: upd description
     /// Add new liquidity into pool `X`/`Y` and get liquidity coin `LP`.
-    /// * `coin_x_val` - amount of coin `X` to add as liquidity.
-    /// * `coin_x_val_min` - minimum amount of coin `X` to add as liquidity (slippage).
-    /// * `coin_y_val` - minimum amount of coin `Y` to add as liquidity.
-    /// * `coin_y_val_min` - minimum amount of coin `Y` to add as liquidity (slippage).
+    /// * `account` - liquidity adding signer.
+    /// * `fa_x_val` - amount of fa `X` to add as liquidity.
+    /// * `fa_x_val_min` - minimum amount of fa `X` to add as liquidity (slippage).
+    /// * `fa_y_val` - minimum amount of fa `Y` to add as liquidity.
+    /// * `fa_y_val_min` - minimum amount of coin `Y` to add as liquidity (slippage).
+    /// * `x_metadata` - metadata object of FungibleAsset X.
+    /// * `y_metadata` - metadata object of FungibleAsset Y.
     ///
     /// Note: X, Y generic coin parameters must be sorted.
     public entry fun add_liquidity<X, Y, Curve>(
@@ -90,11 +95,13 @@ module liquidswap_v05::scripts {
         coin::deposit(account_addr, lp_coins);
     }
 
-    // todo: upd description
-    /// Remove (burn) liquidity coins `LP` from account, get `X` and`Y` coins back.
+    /// Remove (burn) liquidity coins `LP` from account, get `X` and`Y` FA's back.
+    /// * `account` - liquidity burning signer.
     /// * `lp_val` - amount of `LP` coins to burn.
-    /// * `min_x_out_val` - minimum amount of X coins to get.
-    /// * `min_y_out_val` - minimum amount of Y coins to get.
+    /// * `min_x_out_val` - minimum amount of X FA to get.
+    /// * `min_y_out_val` - minimum amount of Y FA to get.
+    /// * `x_metadata` - metadata object of FungibleAsset X.
+    /// * `y_metadata` - metadata object of FungibleAsset Y.
     ///
     /// Note: X, Y generic coin parameters must be sorted.
     public entry fun remove_liquidity<X, Y, Curve>(
@@ -121,10 +128,12 @@ module liquidswap_v05::scripts {
         primary_fungible_store::deposit(account_addr, fa_y);
     }
 
-    // todo: upd description
-    /// Swap exact coin `X` for at least minimum coin `Y`.
-    /// * `coin_val` - amount of coins `X` to swap.
-    /// * `coin_out_min_val` - minimum expected amount of coins `Y` to get.
+    /// Swap exact FA `X` for at least minimum FA `Y`.
+    /// * `account` - swap preforming signer.
+    /// * `fa_val` - amount of FA `X` to swap.
+    /// * `fa_out_min_val` - minimum expected amount of FA `Y` to get.
+    /// * `x_metadata` - metadata object of FungibleAsset X.
+    /// * `y_metadata` - metadata object of FungibleAsset Y.
     public entry fun swap<X, Y, Curve>(
         account: &signer,
         fa_val: u64,
@@ -132,7 +141,6 @@ module liquidswap_v05::scripts {
         x_metadata: Object<Metadata>,
         y_metadata: Object<Metadata>,
     ) {
-        // todo: metadata read here
         let fa_x = primary_fungible_store::withdraw(account, x_metadata, fa_val);
 
         let fa_y =
@@ -146,10 +154,12 @@ module liquidswap_v05::scripts {
         primary_fungible_store::deposit(account_addr, fa_y);
     }
 
-    // todo: upd description
-    /// Swap maximum coin `X` for exact coin `Y`.
-    /// * `coin_val_max` - how much of coins `X` can be used to get `Y` coin.
-    /// * `coin_out` - how much of coins `Y` should be returned.
+    /// Swap maximum FA `X` for exact FA `Y`.
+    /// * `account` - swap preforming signer.
+    /// * `fa_val_max` - how much of FA `X` can be used to get `Y` FA.
+    /// * `fa_out` - how much of FA `Y` should be returned.
+    /// * `x_metadata` - metadata object of FungibleAsset X.
+    /// * `y_metadata` - metadata object of FungibleAsset Y.
     public entry fun swap_into<X, Y, Curve>(
         account: &signer,
         fa_val_max: u64,
@@ -157,7 +167,6 @@ module liquidswap_v05::scripts {
         x_metadata: Object<Metadata>,
         y_metadata: Object<Metadata>,
     ) {
-        // todo: metadata read here
         let fa_x = primary_fungible_store::withdraw(account, x_metadata, fa_val_max);
 
         let (fa_x, fa_y) =
@@ -172,11 +181,13 @@ module liquidswap_v05::scripts {
         primary_fungible_store::deposit(account_addr, fa_y);
     }
 
-    // todo: upd description
-    /// Swap `coin_in` of X for a `coin_out` of Y.
+    /// Swap `fa_in` of X for a `fa_out` of Y.
     /// Does not check optimality of the swap, and fails if the `X` to `Y` price ratio cannot be satisfied.
-    /// * `coin_in` - how much of coins `X` to swap.
-    /// * `coin_out` - how much of coins `Y` should be returned.
+    /// * `account` - swap preforming signer.
+    /// * `fa_in` - how much of FA `X` to swap.
+    /// * `fa_out` - how much of FA `Y` should be returned.
+    /// * `x_metadata` - metadata object of FungibleAsset X.
+    /// * `y_metadata` - metadata object of FungibleAsset Y.
     public entry fun swap_unchecked<X, Y, Curve>(
         account: &signer,
         fa_in: u64,
@@ -184,7 +195,6 @@ module liquidswap_v05::scripts {
         x_metadata: Object<Metadata>,
         y_metadata: Object<Metadata>,
     ) {
-        // todo: metadata read here
         let fa_x = primary_fungible_store::withdraw(account, x_metadata, fa_in);
 
         let fa_y =
