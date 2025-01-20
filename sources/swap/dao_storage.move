@@ -49,10 +49,11 @@ module liquidswap_v05::dao_storage {
         move_to(liquidswap_admin, StoreObjectsCreatorCap { signer_cap: storage_sig_cap });
     }
 
-    // todo: upd descr
     /// Register storage
     /// Parameters:
-    /// * `owner` - owner of storage
+    /// * `owner` - owner of storage.
+    /// * `x_metadata` - metadata object of FungibleAsset X.
+    /// * `y_metadata` - metadata object of FungibleAsset Y.
     public(friend) fun register<Curve>(
         owner: &signer,
         x_metadata: Object<Metadata>,
@@ -62,10 +63,10 @@ module liquidswap_v05::dao_storage {
         let obj_creator_acc = account::create_signer_with_capability(&obj_creator_cap.signer_cap);
 
         // Create fungible stores for X and Y FA's.
-        // todo: add test, add check that abilities is OFF
-        // todo: disable obj transfer ability. May be there is other abilities like burn. Recheck.
         let storage_seed = *string::bytes(&create_fa_storage_seed<Curve>(x_metadata, y_metadata));
-        let store_obj_constructor_ref = object::create_named_object(&obj_creator_acc, storage_seed);
+        let store_obj_constructor_ref =
+            object::create_named_object(&obj_creator_acc, storage_seed);
+        object::set_untransferable(&store_obj_constructor_ref);
         let store_obj_acc = object::generate_signer(&store_obj_constructor_ref);
 
         let (fa_res_acc, fa_sig_cap) =
@@ -73,7 +74,6 @@ module liquidswap_v05::dao_storage {
         let fa_res_acc_addr = signer::address_of(&fa_res_acc);
         move_to(&store_obj_acc, FungibleStoreSigner { signer_cap: fa_sig_cap });
 
-        // todo: add check in DAO REGISTER tests <================================
         primary_fungible_store::create_primary_store(fa_res_acc_addr, x_metadata);
         primary_fungible_store::create_primary_store(fa_res_acc_addr, y_metadata);
 
@@ -82,22 +82,24 @@ module liquidswap_v05::dao_storage {
             coin_deposited_handle: account::new_event_handle(owner),
             coin_withdrawn_handle: account::new_event_handle(owner)
         };
-        // todo: upd events with FA staff
-        // todo: store events somewhere else?
+
+        // todo: gen 2 events?
         event::emit_event(
             &mut events_store.storage_registered_handle,
-            StorageCreatedEvent<Curve> {}
+            StorageCreatedEvent<Curve> {
+                x_metadata: object::object_address(&x_metadata),
+                y_metadata: object::object_address(&y_metadata),
+            }
         );
 
         move_to(owner, events_store);
     }
 
-    // todo: upd descr
-    /// Deposit coins to storage from liquidity pool
+    /// Deposit FA's to storage from liquidity pool
     /// Parameters:
-    /// * `pool_addr` - pool owner address
-    /// * `coin_x` - X coin to deposit
-    /// * `coin_y` - Y coin to deposit
+    /// * `pool_addr` - pool owner address.
+    /// * `fa_x` - X FA to deposit.
+    /// * `fa_y` - Y FA to deposit.
     public(friend) fun deposit<Curve>(
         pool_addr: address,
         fa_x: FungibleAsset,
@@ -122,27 +124,30 @@ module liquidswap_v05::dao_storage {
         let x_val = fungible_asset::amount(&fa_x);
         let y_val = fungible_asset::amount(&fa_y);
 
-        // todo: check in tests that FA's in place
         primary_fungible_store::deposit(fa_res_acc_addr, fa_x);
         primary_fungible_store::deposit(fa_res_acc_addr, fa_y);
 
-        // todo: upd event to FA style
-        // todo: store event somewhere else?
         let events_store = borrow_global_mut<EventsStore<Curve>>(pool_addr);
         event::emit_event(
             &mut events_store.coin_deposited_handle,
-            CoinDepositedEvent<Curve> { x_val, y_val }
+            CoinDepositedEvent<Curve> {
+                x_val,
+                y_val,
+                x_metadata: object::object_address(&x_metadata),
+                y_metadata: object::object_address(&y_metadata),
+            }
         );
     }
 
-    // todo: upd descr
-    /// Withdraw coins from storage
+    /// Withdraw FA's from storage
     /// Parameters:
-    /// * `dao_admin_acc` - DAO admin
-    /// * `pool_addr` - pool owner address
-    /// * `x_val` - amount of X coins to withdraw
-    /// * `y_val` - amount of Y coins to withdraw
-    /// Returns both withdrawn X and Y coins: `(Coin<X>, Coin<Y>)`.
+    /// * `dao_admin_acc` - DAO admin.
+    /// * `pool_addr` - pool owner address.
+    /// * `x_val` - amount of X FA to withdraw.
+    /// * `y_val` - amount of Y FA to withdraw.
+    /// * `x_metadata` - metadata object of FungibleAsset X.
+    /// * `y_metadata` - metadata object of FungibleAsset Y.
+    /// Returns both withdrawn X and Y FA's: `(FungibleAsset, FungibleAsset)`.
     public fun withdraw<Curve>(
         dao_admin_acc: &signer,
         pool_addr: address,
@@ -166,26 +171,31 @@ module liquidswap_v05::dao_storage {
         let fa_x = primary_fungible_store::withdraw(fa_res_acc, x_metadata, x_val);
         let fa_y = primary_fungible_store::withdraw(fa_res_acc, y_metadata, y_val);
 
-        // todo: upd event with FA staff
-        // todo: store event somewhere else?
         let events_store = borrow_global_mut<EventsStore<Curve>>(pool_addr);
         event::emit_event(
             &mut events_store.coin_withdrawn_handle,
-            CoinWithdrawnEvent<Curve> { x_val, y_val }
+            CoinWithdrawnEvent<Curve> {
+                x_val,
+                y_val,
+                x_metadata: object::object_address(&x_metadata),
+                y_metadata: object::object_address(&y_metadata),
+            }
         );
 
         (fa_x, fa_y)
     }
 
-    // todo: add description
-    // todo: add testcase
     #[view]
+    /// Creates a seed for FA's storage object.
+    /// * `x_metadata` - metadata object of FungibleAsset X.
+    /// * `y_metadata` - metadata object of FungibleAsset Y.
     public fun create_fa_storage_seed<Curve>(
         x_metadata: Object<Metadata>,
         y_metadata: Object<Metadata>,
     ): String {
-        let pool_obj_name = &fa_helper::create_pool_obj_name<Curve>(x_metadata, y_metadata);
-        string_utils::format1(&b"{}-DAO-FA-Storage", *pool_obj_name)
+        let pool_obj_name = fa_helper::create_pool_obj_name<Curve>(x_metadata, y_metadata);
+        string::append_utf8(&mut pool_obj_name, b"{}-DAO-FA-Storage");
+        pool_obj_name
     }
 
     #[test_only]
@@ -238,15 +248,22 @@ module liquidswap_v05::dao_storage {
         coin_withdrawn_handle: event::EventHandle<CoinWithdrawnEvent<Curve>>,
     }
 
-    struct StorageCreatedEvent<phantom Curve> has store, drop {}
+    struct StorageCreatedEvent<phantom Curve> has store, drop {
+        x_metadata: address,
+        y_metadata: address,
+    }
 
     struct CoinDepositedEvent<phantom Curve> has store, drop {
         x_val: u64,
         y_val: u64,
+        x_metadata: address,
+        y_metadata: address,
     }
 
     struct CoinWithdrawnEvent<phantom Curve> has store, drop {
         x_val: u64,
         y_val: u64,
+        x_metadata: address,
+        y_metadata: address,
     }
 }

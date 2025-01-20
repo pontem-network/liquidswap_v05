@@ -182,6 +182,7 @@ module liquidswap_v05::fa_helper {
         string::sub_string(&symbol, 0, prefix_length)
     }
 
+    #[view]
     // todo: add desription
     // todo: add tests
     public fun create_pool_obj_name<Curve>(metadata_x: Object<Metadata>, metadata_y: Object<Metadata>): String {
