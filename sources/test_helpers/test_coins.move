@@ -6,7 +6,6 @@ module test_coin_admin::test_coins {
     use std::signer;
     use std::string;
     use std::vector;
-    use aptos_std::type_info;
 
     use aptos_framework::coin::{Self, Coin, MintCapability, BurnCapability};
     use aptos_framework::account;

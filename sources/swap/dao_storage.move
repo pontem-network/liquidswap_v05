@@ -5,14 +5,13 @@ module liquidswap_v05::dao_storage {
 
     use aptos_framework::account;
     use aptos_framework::account::SignerCapability;
-    use aptos_framework::coin::{Self, Coin};
     use aptos_framework::event;
     use aptos_framework::fungible_asset;
     use aptos_framework::fungible_asset::{Metadata, FungibleAsset};
     use aptos_framework::object;
     use aptos_framework::object::Object;
     use aptos_framework::primary_fungible_store;
-    use liquidswap_v05::coin_helper;
+    use liquidswap_v05::fa_helper;
 
     use liquidswap_v05::global_config;
 
@@ -63,6 +62,7 @@ module liquidswap_v05::dao_storage {
         let obj_creator_acc = account::create_signer_with_capability(&obj_creator_cap.signer_cap);
 
         // Create fungible stores for X and Y FA's.
+        // todo: add test, add check that abilities is OFF
         // todo: disable obj transfer ability. May be there is other abilities like burn. Recheck.
         let storage_seed = *string::bytes(&create_fa_storage_seed<Curve>(x_metadata, y_metadata));
         let store_obj_constructor_ref = object::create_named_object(&obj_creator_acc, storage_seed);
@@ -184,8 +184,7 @@ module liquidswap_v05::dao_storage {
         x_metadata: Object<Metadata>,
         y_metadata: Object<Metadata>,
     ): String {
-        let pool_obj_name =
-            string::bytes(&coin_helper::create_pool_obj_name<Curve>(x_metadata, y_metadata));
+        let pool_obj_name = &fa_helper::create_pool_obj_name<Curve>(x_metadata, y_metadata);
         string_utils::format1(&b"{}-DAO-FA-Storage", *pool_obj_name)
     }
 

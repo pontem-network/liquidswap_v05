@@ -3,7 +3,7 @@ module test_helpers::test_pool {
     use std::signer;
 
     use aptos_framework::account;
-    use aptos_framework::coin::{Self, Coin};
+    use aptos_framework::coin;
     use aptos_framework::fungible_asset::FungibleAsset;
     use aptos_framework::genesis;
     use liquidswap_lp::lp_coin::LP;

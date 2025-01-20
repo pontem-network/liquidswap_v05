@@ -551,7 +551,7 @@ module liquidswap_v05::router_tests {
     }
 
     #[test]
-    #[expected_failure(abort_code = liquidity_pool::ERR_EMPTY_COIN_IN)]
+    #[expected_failure(abort_code = liquidity_pool::ERR_EMPTY_FA_IN)]
     fun test_fail_if_swap_zero_coin() {
         let (fa_admin, lp_owner) = register_pool_with_liquidity(101, 10100);
 

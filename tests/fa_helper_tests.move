@@ -1,12 +1,12 @@
 #[test_only]
-module liquidswap_v05::coin_helper_tests {
+module liquidswap_v05::fa_helper_tests {
     use std::string::{utf8, String};
 
     use aptos_framework::coin;
     use aptos_framework::genesis;
     use aptos_std::comparator;
 
-    use liquidswap_v05::coin_helper;
+    use liquidswap_v05::fa_helper;
     use liquidswap_v05::curves::{Uncorrelated, Stable};
     use test_coin_admin::test_coins::{Self, BTC, USDT, create_coin_admin};
 
@@ -43,7 +43,7 @@ module liquidswap_v05::coin_helper_tests {
     }
 
     fun generate_lp_name_and_symbol_for_coins<Curve>(): (String, String) {
-        coin_helper::generate_lp_name_and_symbol<BTC, USDT, Curve>()
+        fa_helper::generate_lp_name_and_symbol<BTC, USDT, Curve>()
     }
 
     #[test]
@@ -52,46 +52,46 @@ module liquidswap_v05::coin_helper_tests {
 
         let coin_admin = test_coins::create_admin_with_coins();
 
-        coin_helper::assert_is_coin<USDT>();
-        coin_helper::assert_is_coin<BTC>();
+        fa_helper::assert_is_coin<USDT>();
+        fa_helper::assert_is_coin<BTC>();
 
         let coins_minted = test_coins::mint<USDT>(&coin_admin, 1000000000);
 
-        let usdt_supply = coin_helper::supply<USDT>();
-        let btc_supply = coin_helper::supply<BTC>();
+        let usdt_supply = fa_helper::supply<USDT>();
+        let btc_supply = fa_helper::supply<BTC>();
         assert!(usdt_supply == 1000000000, 0);
         assert!(btc_supply == 0, 1);
 
         test_coins::burn(&coin_admin, coins_minted);
-        usdt_supply = coin_helper::supply<USDT>();
+        usdt_supply = fa_helper::supply<USDT>();
         assert!(usdt_supply == 0, 2);
 
-        assert!(coin_helper::is_sorted<BTC, USDT>(), 3);
-        assert!(!coin_helper::is_sorted<USDT, BTC>(), 4);
+        assert!(fa_helper::is_sorted<BTC, USDT>(), 3);
+        assert!(!fa_helper::is_sorted<USDT, BTC>(), 4);
 
-        let cmp = coin_helper::compare<BTC, USDT>();
+        let cmp = fa_helper::compare<BTC, USDT>();
         assert!(comparator::is_smaller_than(&cmp), 5);
-        cmp = coin_helper::compare<BTC, BTC>();
+        cmp = fa_helper::compare<BTC, BTC>();
         assert!(comparator::is_equal(&cmp), 6);
-        cmp = coin_helper::compare<USDT, BTC>();
+        cmp = fa_helper::compare<USDT, BTC>();
         assert!(comparator::is_greater_than(&cmp), 7);
     }
 
     #[test]
-    #[expected_failure(abort_code = coin_helper::ERR_IS_NOT_COIN)]
+    #[expected_failure(abort_code = fa_helper::ERR_IS_NOT_COIN)]
     fun test_assert_is_coin_failure() {
-        coin_helper::assert_is_coin<USDT>();
+        fa_helper::assert_is_coin<USDT>();
     }
 
     #[test]
-    #[expected_failure(abort_code = coin_helper::ERR_CANNOT_BE_THE_SAME_COIN)]
+    #[expected_failure(abort_code = fa_helper::ERR_CANNOT_BE_THE_SAME_FA)]
     fun test_cant_be_same_coin_failure() {
         genesis::setup();
 
         test_coins::create_admin_with_coins();
 
-        coin_helper::assert_is_coin<USDT>();
-        let _ = coin_helper::is_sorted<USDT, USDT>();
+        fa_helper::assert_is_coin<USDT>();
+        let _ = fa_helper::is_sorted<USDT, USDT>();
     }
 
     #[test]

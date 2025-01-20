@@ -2,16 +2,21 @@
 module liquidswap_v05::liquidity_pool_tests {
     use std::option;
     use std::signer;
+    use std::string;
     use std::string::utf8;
 
     use aptos_framework::account;
     use aptos_framework::coin;
     use aptos_framework::fungible_asset;
+    use aptos_framework::object;
     use aptos_framework::primary_fungible_store;
     use aptos_framework::timestamp;
     use liquidswap_lp::lp_coin::LP;
+    use liquidswap_v05::liquidity_pool::LiquidityPool;
+    use liquidswap_v05::fa_helper;
+    use liquidswap_v05::dao_storage;
 
-    use liquidswap_v05::coin_helper::supply;
+    use liquidswap_v05::fa_helper::supply;
     use liquidswap_v05::curves::{Uncorrelated, Stable};
     use liquidswap_v05::emergency;
     use liquidswap_v05::global_config;
@@ -100,8 +105,7 @@ module liquidswap_v05::liquidity_pool_tests {
         assert!(option::is_some(&lp_supply), 20);
         assert!(*option::borrow(&lp_supply) == 0, 21);
 
-        // Get cumulative prices.
-
+        // Check cumulative prices.
         let (x_cum_price, y_cum_price, ts) =
             liquidity_pool::get_cumulative_prices<BTC, USDT, Uncorrelated>(fa_x_metadata, fa_y_metadata);
         assert!(x_cum_price == 0, 22);
@@ -111,8 +115,33 @@ module liquidswap_v05::liquidity_pool_tests {
         // Check if it's locked.
         assert!(!liquidity_pool::is_pool_locked<BTC, USDT, Uncorrelated>(fa_x_metadata, fa_y_metadata), 25);
 
-        // todo: check pool obj created, check it's owner, check Trans ability and Burn ablity etc
-        // todo: check FA stores created, check owner, check Trans ability and Burn ablity etc
+        // Check DAO stores initialized correctly.
+        let storage_creator_addr =
+            account::create_resource_address(&@liquidswap_v05, b"dao_fa_store_sig_cap_seed");
+        let storage_seed =
+            dao_storage::create_fa_storage_seed<Uncorrelated>(fa_x_metadata, fa_y_metadata);
+        let fa_res_acc_addr =
+            account::create_resource_address(&storage_creator_addr, *string::bytes(&storage_seed));
+
+        assert!(primary_fungible_store::primary_store_exists(fa_res_acc_addr, fa_x_metadata), 26);
+        assert!(primary_fungible_store::primary_store_exists(fa_res_acc_addr, fa_y_metadata), 27);
+
+        // Check pool object created.
+        let pool_obj_name =
+            string::bytes(&fa_helper::create_pool_obj_name<Uncorrelated>(fa_x_metadata, fa_y_metadata));
+        let pool_obj_addr =
+            object::create_object_address(&@liquidswap_pool_account, *pool_obj_name);
+        assert!(object::object_exists<LiquidityPool<BTC, USDT, Uncorrelated>>(pool_obj_addr), 28);
+        let pool_obj =
+            object::address_to_object<LiquidityPool<BTC, USDT, Uncorrelated>>(pool_obj_addr);
+        assert!(object::owner(pool_obj) == @liquidswap_pool_account, 29);
+        assert!(object::is_untransferable(pool_obj), 30);
+
+        // Check pool FA stores created.
+        let pool_fa_store_res_acc_addr =
+            account::create_resource_address(&@liquidswap_pool_account, *pool_obj_name);
+        assert!(primary_fungible_store::primary_store_exists(pool_fa_store_res_acc_addr, fa_x_metadata), 31);
+        assert!(primary_fungible_store::primary_store_exists(pool_fa_store_res_acc_addr, fa_y_metadata), 32);
     }
 
     #[test(emergency_acc = @emergency_admin)]
@@ -192,37 +221,9 @@ module liquidswap_v05::liquidity_pool_tests {
         );
 
         // here generics are provided as USDT-BTC, but pool is BTC-USDT. `reverse` parameter is irrelevant
-        let (_x_price, _y_price, _) =
+        let (_, _, _) =
             liquidity_pool::get_cumulative_prices<USDT, BTC, Uncorrelated>(fa_y_metadata, fa_x_metadata);
     }
-
-
-    // todo: some check is it fungable asset here
-    // todo: seems if we pass Metadata it's always FA
-    // todo: remove this lines after check that Metadata cannot exist separate from FA
-    // #[test]
-    // #[expected_failure(abort_code = coin_helper::ERR_IS_NOT_COIN)]
-    // fun test_fail_if_x_is_not_coin() {
-    //     let (coin_admin, lp_owner) = test_pool::create_coin_admin_and_lp_owner();
-    //
-    //     test_coins::register_coin<USDT>(&coin_admin, b"USDT", b"USDT", 6);
-    //
-    //     initialize_liquidity_pool();
-    //
-    //     liquidity_pool::register<BTC, USDT, Uncorrelated>(&lp_owner);
-    // }
-    //
-    // #[test]
-    // #[expected_failure(abort_code = coin_helper::ERR_IS_NOT_COIN)]
-    // fun test_fail_if_y_is_not_coin() {
-    //     let (coin_admin, lp_owner) = test_pool::create_coin_admin_and_lp_owner();
-    //
-    //     test_coins::register_coin<BTC>(&coin_admin, b"BTC", b"BTC", 8);
-    //
-    //     initialize_liquidity_pool();
-    //
-    //     liquidity_pool::register<BTC, USDT, Uncorrelated>(&lp_owner);
-    // }
 
     #[test]
     #[expected_failure(abort_code = liquidity_pool::ERR_POOL_EXISTS_FOR_PAIR)]
@@ -243,6 +244,253 @@ module liquidswap_v05::liquidity_pool_tests {
             fa_x_metadata,
             fa_y_metadata
         );
+    }
+
+    #[test]
+    #[expected_failure(abort_code = fa_helper::ERR_CANNOT_BE_THE_SAME_FA)]
+    fun test_fail_if_same_metadata_used_to_create_pool() {
+        let (_, lp_owner) = test_pool::setup_fa_and_lp_owner();
+
+        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"BTC");
+
+        liquidity_pool::register<BTC, USDT, Uncorrelated>(
+            &lp_owner,
+            fa_x_metadata,
+            fa_x_metadata
+        );
+    }
+
+    #[test]
+    fun test_same_symbol_fas_used_to_create_pool() {
+        let (fa_admin, lp_owner) = test_pool::setup_fa_and_lp_owner();
+
+        let constructor_ref = object::create_named_object(&fa_admin, b"BTC2_FA_OBJ");
+        primary_fungible_store::create_primary_store_enabled_fungible_asset(
+            &constructor_ref,
+            option::none() /* max supply */,
+            string::utf8(b"BTC Fungible Asset"),
+            string::utf8(b"BTC"),
+            8,
+            string::utf8(b"http://www.example.com/favicon.ico"),
+            string::utf8(b"http://www.example.com"),
+        );
+        let mint_ref = fungible_asset::generate_mint_ref(&constructor_ref);
+
+        let fa_x_metadata = fungible_asset::mint_ref_metadata(&mint_ref);
+        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"BTC");
+
+        liquidity_pool::register<BTC, USDT, Uncorrelated>(
+            &lp_owner,
+            fa_x_metadata,
+            fa_y_metadata
+        );
+
+        // Check created LP.
+        assert!(coin::is_coin_initialized<LP<BTC, USDT, Uncorrelated>>(), 1);
+        let lp_name = coin::name<LP<BTC, USDT, Uncorrelated>>();
+        // todo: rework after lp_coin => lp_fa
+        assert!(lp_name == utf8(b"LS05 LP-BTC-BTC-U"), 2);
+        let lp_symbol = coin::symbol<LP<BTC, USDT, Uncorrelated>>();
+        assert!(lp_symbol == utf8(b"BTC-BTCU"), 3);
+        let lp_supply = coin::supply<LP<BTC, USDT, Uncorrelated>>();
+        assert!(option::is_some(&lp_supply), 4);
+        assert!(*option::borrow(&lp_supply) == 0, 5);
+
+        // Check cumulative prices.
+        let (x_cum_price, y_cum_price, ts) =
+            liquidity_pool::get_cumulative_prices<BTC, USDT, Uncorrelated>(fa_x_metadata, fa_y_metadata);
+        assert!(x_cum_price == 0, 6);
+        assert!(y_cum_price == 0, 7);
+        assert!(ts == 0, 8);
+
+        // Check if it's locked.
+        assert!(!liquidity_pool::is_pool_locked<BTC, USDT, Uncorrelated>(fa_x_metadata, fa_y_metadata), 9);
+
+        // Check DAO stores initialized correctly.
+        let storage_creator_addr =
+            account::create_resource_address(&@liquidswap_v05, b"dao_fa_store_sig_cap_seed");
+        let storage_seed =
+            dao_storage::create_fa_storage_seed<Uncorrelated>(fa_x_metadata, fa_y_metadata);
+        let fa_res_acc_addr =
+            account::create_resource_address(&storage_creator_addr, *string::bytes(&storage_seed));
+
+        assert!(primary_fungible_store::primary_store_exists(fa_res_acc_addr, fa_x_metadata), 10);
+        assert!(primary_fungible_store::primary_store_exists(fa_res_acc_addr, fa_y_metadata), 11);
+
+        // Check pool object created.
+        let pool_obj_name =
+            string::bytes(&fa_helper::create_pool_obj_name<Uncorrelated>(fa_x_metadata, fa_y_metadata));
+        let pool_obj_addr =
+            object::create_object_address(&@liquidswap_pool_account, *pool_obj_name);
+        assert!(object::object_exists<LiquidityPool<BTC, USDT, Uncorrelated>>(pool_obj_addr), 12);
+        let pool_obj =
+            object::address_to_object<LiquidityPool<BTC, USDT, Uncorrelated>>(pool_obj_addr);
+        assert!(object::owner(pool_obj) == @liquidswap_pool_account, 13);
+        assert!(object::is_untransferable(pool_obj), 14);
+
+        // Check pool FA stores created.
+        let pool_fa_store_res_acc_addr =
+            account::create_resource_address(&@liquidswap_pool_account, *pool_obj_name);
+        assert!(primary_fungible_store::primary_store_exists(pool_fa_store_res_acc_addr, fa_x_metadata), 15);
+        assert!(primary_fungible_store::primary_store_exists(pool_fa_store_res_acc_addr, fa_y_metadata), 16);
+    }
+
+    #[test]
+    fun test_create_two_pools_same_metadata_diff_curves() {
+        let (_, lp_owner) = test_pool::setup_fa_and_lp_owner();
+
+        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"BTC");
+        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+
+        // Check no objects before pool creation
+        assert!(!liquidity_pool::is_pool_exists<BTC, USDT, Uncorrelated>(fa_x_metadata, fa_y_metadata), 1);
+        assert!(!liquidity_pool::is_pool_exists<BTC, USDT, Stable>(fa_x_metadata, fa_y_metadata), 2);
+
+        liquidity_pool::register<BTC, USDT, Uncorrelated>(&lp_owner, fa_x_metadata, fa_y_metadata);
+        liquidity_pool::register<BTC, USDT, Stable>(&lp_owner, fa_x_metadata, fa_y_metadata);
+
+        assert!(liquidity_pool::is_pool_exists<BTC, USDT, Uncorrelated>(fa_x_metadata, fa_y_metadata), 3);
+        assert!(liquidity_pool::is_pool_exists<BTC, USDT, Stable>(fa_x_metadata, fa_y_metadata), 4);
+
+        assert!(coin::is_coin_initialized<LP<BTC, USDT, Uncorrelated>>(), 5);
+        assert!(!coin::is_coin_initialized<LP<USDT, BTC, Uncorrelated>>(), 6);
+        assert!(coin::is_coin_initialized<LP<BTC, USDT, Stable>>(), 7);
+        assert!(!coin::is_coin_initialized<LP<USDT, BTC, Stable>>(), 8);
+
+        let (x_res_val, y_res_val) =
+            liquidity_pool::get_reserves_size<BTC, USDT, Uncorrelated>(fa_x_metadata, fa_y_metadata);
+        assert!(x_res_val == 0, 9);
+        assert!(y_res_val == 0, 10);
+        let (x_res_val, y_res_val) =
+            liquidity_pool::get_reserves_size<BTC, USDT, Stable>(fa_x_metadata, fa_y_metadata);
+        assert!(x_res_val == 0, 11);
+        assert!(y_res_val == 0, 12);
+
+        let (x_price, y_price, _) =
+            liquidity_pool::get_cumulative_prices<BTC, USDT, Uncorrelated>(fa_x_metadata, fa_y_metadata);
+        assert!(x_price == 0, 13);
+        assert!(y_price == 0, 14);
+        let (x_price, y_price, _) =
+            liquidity_pool::get_cumulative_prices<BTC, USDT, Stable>(fa_x_metadata, fa_y_metadata);
+        assert!(x_price == 0, 15);
+        assert!(y_price == 0, 16);
+
+        // Check Uncorrelated LP created.
+        assert!(coin::is_coin_initialized<LP<BTC, USDT, Uncorrelated>>(), 17);
+        let lp_name = coin::name<LP<BTC, USDT, Uncorrelated>>();
+        assert!(lp_name == utf8(b"LS05 LP-BTC-USDT-U"), 18);
+        let lp_symbol = coin::symbol<LP<BTC, USDT, Uncorrelated>>();
+        assert!(lp_symbol == utf8(b"BTC-USDTU"), 19);
+        let lp_supply = coin::supply<LP<BTC, USDT, Uncorrelated>>();
+        assert!(option::is_some(&lp_supply), 20);
+        assert!(*option::borrow(&lp_supply) == 0, 21);
+
+        // Check Stable LP created.
+        assert!(coin::is_coin_initialized<LP<BTC, USDT, Stable>>(), 22);
+        let lp_name = coin::name<LP<BTC, USDT, Stable>>();
+        assert!(lp_name == utf8(b"LS05 LP-BTC-USDT-S"), 23);
+        let lp_symbol = coin::symbol<LP<BTC, USDT, Stable>>();
+        assert!(lp_symbol == utf8(b"BTC-USDTS"), 24);
+        let lp_supply = coin::supply<LP<BTC, USDT, Stable>>();
+        assert!(option::is_some(&lp_supply), 25);
+        assert!(*option::borrow(&lp_supply) == 0, 26);
+
+        // Check cumulative prices.
+        let (x_cum_price, y_cum_price, ts) =
+            liquidity_pool::get_cumulative_prices<BTC, USDT, Uncorrelated>(fa_x_metadata, fa_y_metadata);
+        assert!(x_cum_price == 0, 27);
+        assert!(y_cum_price == 0, 28);
+        assert!(ts == 0, 29);
+        let (x_cum_price, y_cum_price, ts) =
+            liquidity_pool::get_cumulative_prices<BTC, USDT, Stable>(fa_x_metadata, fa_y_metadata);
+        assert!(x_cum_price == 0, 30);
+        assert!(y_cum_price == 0, 31);
+        assert!(ts == 0, 32);
+
+        // Check if it's locked.
+        assert!(!liquidity_pool::is_pool_locked<BTC, USDT, Uncorrelated>(fa_x_metadata, fa_y_metadata), 33);
+        assert!(!liquidity_pool::is_pool_locked<BTC, USDT, Stable>(fa_x_metadata, fa_y_metadata), 34);
+
+        // Check DAO stores initialized correctly.
+        let storage_creator_addr =
+            account::create_resource_address(&@liquidswap_v05, b"dao_fa_store_sig_cap_seed");
+        let storage_seed_u =
+            dao_storage::create_fa_storage_seed<Uncorrelated>(fa_x_metadata, fa_y_metadata);
+        let fa_res_acc_addr_u =
+            account::create_resource_address(&storage_creator_addr, *string::bytes(&storage_seed_u));
+        let storage_seed_s =
+            dao_storage::create_fa_storage_seed<Stable>(fa_x_metadata, fa_y_metadata);
+        let fa_res_acc_addr_s =
+            account::create_resource_address(&storage_creator_addr, *string::bytes(&storage_seed_s));
+
+        // Check seeds and res accs are differ for diff curves.
+        assert!(storage_seed_u != storage_seed_s, 35);
+        assert!(fa_res_acc_addr_u != fa_res_acc_addr_s, 36);
+
+        // Check FA DAO stores has diff addresses.
+        let fa_x_store_addr_u =
+            primary_fungible_store::primary_store_address(fa_res_acc_addr_u, fa_x_metadata);
+        let fa_y_store_addr_u =
+            primary_fungible_store::primary_store_address(fa_res_acc_addr_u, fa_y_metadata);
+        let fa_x_store_addr_s =
+            primary_fungible_store::primary_store_address(fa_res_acc_addr_s, fa_x_metadata);
+        let fa_y_store_addr_s =
+            primary_fungible_store::primary_store_address(fa_res_acc_addr_s, fa_y_metadata);
+        assert!(fa_x_store_addr_u != fa_x_store_addr_s, 37);
+        assert!(fa_y_store_addr_u != fa_y_store_addr_s, 38);
+
+        assert!(primary_fungible_store::primary_store_exists(fa_res_acc_addr_u, fa_x_metadata), 39);
+        assert!(primary_fungible_store::primary_store_exists(fa_res_acc_addr_u, fa_y_metadata), 40);
+        assert!(primary_fungible_store::primary_store_exists(fa_res_acc_addr_s, fa_x_metadata), 41);
+        assert!(primary_fungible_store::primary_store_exists(fa_res_acc_addr_s, fa_y_metadata), 42);
+
+        // Check pool objects created.
+        let pool_obj_name_u =
+            string::bytes(&fa_helper::create_pool_obj_name<Uncorrelated>(fa_x_metadata, fa_y_metadata));
+        let pool_obj_addr_u =
+            object::create_object_address(&@liquidswap_pool_account, *pool_obj_name_u);
+        assert!(object::object_exists<LiquidityPool<BTC, USDT, Uncorrelated>>(pool_obj_addr_u), 43);
+
+        let pool_obj_name_s =
+            string::bytes(&fa_helper::create_pool_obj_name<Stable>(fa_x_metadata, fa_y_metadata));
+        let pool_obj_addr_s =
+            object::create_object_address(&@liquidswap_pool_account, *pool_obj_name_s);
+        assert!(object::object_exists<LiquidityPool<BTC, USDT, Stable>>(pool_obj_addr_s), 44);
+
+        assert!(pool_obj_name_u != pool_obj_name_s, 45);
+        assert!(pool_obj_addr_u != pool_obj_addr_s, 46);
+
+        let pool_obj_u =
+            object::address_to_object<LiquidityPool<BTC, USDT, Uncorrelated>>(pool_obj_addr_u);
+        assert!(object::owner(pool_obj_u) == @liquidswap_pool_account, 47);
+        assert!(object::is_untransferable(pool_obj_u), 48);
+        let pool_obj_s =
+            object::address_to_object<LiquidityPool<BTC, USDT, Stable>>(pool_obj_addr_s);
+        assert!(object::owner(pool_obj_s) == @liquidswap_pool_account, 49);
+        assert!(object::is_untransferable(pool_obj_s), 50);
+
+        // Check pool FA stores created.
+        let pool_fa_store_res_acc_addr_u =
+            account::create_resource_address(&@liquidswap_pool_account, *pool_obj_name_u);
+        let pool_fa_store_res_acc_addr_s =
+            account::create_resource_address(&@liquidswap_pool_account, *pool_obj_name_s);
+
+        // Check pools FA stores has diff addrs.
+        let fa_x_pool_store_addr_u =
+            primary_fungible_store::primary_store_address(pool_fa_store_res_acc_addr_u, fa_x_metadata);
+        let fa_y_pool_store_addr_u =
+            primary_fungible_store::primary_store_address(pool_fa_store_res_acc_addr_u, fa_y_metadata);
+        let fa_x_pool_store_addr_s =
+            primary_fungible_store::primary_store_address(pool_fa_store_res_acc_addr_s, fa_x_metadata);
+        let fa_y_pool_store_addr_s =
+            primary_fungible_store::primary_store_address(pool_fa_store_res_acc_addr_s, fa_y_metadata);
+        assert!(fa_x_pool_store_addr_u != fa_x_pool_store_addr_s, 51);
+        assert!(fa_y_pool_store_addr_u != fa_y_pool_store_addr_s, 52);
+
+        assert!(primary_fungible_store::primary_store_exists(pool_fa_store_res_acc_addr_u, fa_x_metadata), 53);
+        assert!(primary_fungible_store::primary_store_exists(pool_fa_store_res_acc_addr_u, fa_y_metadata), 54);
+        assert!(primary_fungible_store::primary_store_exists(pool_fa_store_res_acc_addr_s, fa_x_metadata), 55);
+        assert!(primary_fungible_store::primary_store_exists(pool_fa_store_res_acc_addr_s, fa_y_metadata), 56);
     }
 
     // Add liquidity tests.
@@ -285,11 +533,19 @@ module liquidswap_v05::liquidity_pool_tests {
         assert!(x_res == btc_liq_val, 2);
         assert!(y_res == usdt_liq_val, 3);
 
+        // Check pool FA stores directly.
+        let pool_obj_name =
+            string::bytes(&fa_helper::create_pool_obj_name<Uncorrelated>(fa_x_metadata, fa_y_metadata));
+        let pool_fa_store_res_acc_addr =
+            account::create_resource_address(&@liquidswap_pool_account, *pool_obj_name);
+        assert!(primary_fungible_store::balance(pool_fa_store_res_acc_addr, fa_x_metadata) == btc_liq_val, 4);
+        assert!(primary_fungible_store::balance(pool_fa_store_res_acc_addr, fa_y_metadata) == usdt_liq_val, 5);
+
         let (x_price, y_price, ts) =
             liquidity_pool::get_cumulative_prices<BTC, USDT, Uncorrelated>(fa_x_metadata, fa_y_metadata);
-        assert!(x_price == 0, 4);
-        assert!(y_price == 0, 5);
-        assert!(ts == 1660338836, 6);
+        assert!(x_price == 0, 6);
+        assert!(y_price == 0, 7);
+        assert!(ts == 1660338836, 8);
     }
 
     #[test]
@@ -385,11 +641,19 @@ module liquidswap_v05::liquidity_pool_tests {
         assert!(x_res == btc_liq_val, 2);
         assert!(y_res == usdt_liq_val, 3);
 
+        // Check pool FA stores directly.
+        let pool_obj_name =
+            string::bytes(&fa_helper::create_pool_obj_name<Uncorrelated>(fa_x_metadata, fa_y_metadata));
+        let pool_fa_store_res_acc_addr =
+            account::create_resource_address(&@liquidswap_pool_account, *pool_obj_name);
+        assert!(primary_fungible_store::balance(pool_fa_store_res_acc_addr, fa_x_metadata) == btc_liq_val, 4);
+        assert!(primary_fungible_store::balance(pool_fa_store_res_acc_addr, fa_y_metadata) == usdt_liq_val, 5);
+
         let (x_price, y_price, ts) =
             liquidity_pool::get_cumulative_prices<BTC, USDT, Uncorrelated>(fa_x_metadata, fa_y_metadata);
-        assert!(x_price == 0, 4);
-        assert!(y_price == 0, 5);
-        assert!(ts == initial_ts, 6);
+        assert!(x_price == 0, 6);
+        assert!(y_price == 0, 7);
+        assert!(ts == initial_ts, 8);
 
         timestamp::fast_forward_seconds(360);
 
@@ -400,19 +664,27 @@ module liquidswap_v05::liquidity_pool_tests {
         let lp_coins_val =
             test_pool::mint_liquidity<BTC, USDT, Uncorrelated>(&lp_owner, btc_liq, usdt_liq);
 
-        assert!(lp_coins_val == expected_liquidity_2, 7);
-        assert!(supply<LP<BTC, USDT, Uncorrelated>>() == ((expected_liquidity_2 + expected_liquidity) as u128), 8);
+        assert!(lp_coins_val == expected_liquidity_2, 9);
+        assert!(supply<LP<BTC, USDT, Uncorrelated>>() == ((expected_liquidity_2 + expected_liquidity) as u128), 10);
 
         let (x_res, y_res) =
             liquidity_pool::get_reserves_size<BTC, USDT, Uncorrelated>(fa_x_metadata, fa_y_metadata);
-        assert!(x_res == btc_liq_val * 3, 9);
-        assert!(y_res == usdt_liq_val * 3, 10);
+        assert!(x_res == btc_liq_val * 3, 11);
+        assert!(y_res == usdt_liq_val * 3, 12);
+
+        // Check pool FA stores directly.
+        let pool_obj_name =
+            string::bytes(&fa_helper::create_pool_obj_name<Uncorrelated>(fa_x_metadata, fa_y_metadata));
+        let pool_fa_store_res_acc_addr =
+            account::create_resource_address(&@liquidswap_pool_account, *pool_obj_name);
+        assert!(primary_fungible_store::balance(pool_fa_store_res_acc_addr, fa_x_metadata) == btc_liq_val * 3, 14);
+        assert!(primary_fungible_store::balance(pool_fa_store_res_acc_addr, fa_y_metadata) == usdt_liq_val * 3, 15);
 
         let (x_price, y_price, ts) =
             liquidity_pool::get_cumulative_prices<BTC, USDT, Uncorrelated>(fa_x_metadata, fa_y_metadata);
-        assert!(x_price == 1859431802629922802792000, 11);
-        assert!(y_price == 23717242380483709200, 12);
-        assert!(ts == initial_ts + 360, 13);
+        assert!(x_price == 1859431802629922802792000, 16);
+        assert!(y_price == 23717242380483709200, 17);
+        assert!(ts == initial_ts + 360, 18);
     }
 
     #[test]
@@ -440,6 +712,19 @@ module liquidswap_v05::liquidity_pool_tests {
             fungible_asset::zero(fa_x_metadata),
             fungible_asset::zero(fa_y_metadata))
         ;
+    }
+
+    #[test]
+    #[expected_failure(abort_code = liquidity_pool::ERR_WRONG_PAIR_ORDERING)]
+    fun test_add_liquidity_wrong_fa_ordering() {
+        let (fa_admin, lp_owner) = setup_btc_usdt_pool();
+
+        let btc_liq_val = 1000;
+        let usdt_liq_val = 1000;
+        let btc_liq = test_coins::mint_fa(&fa_admin, b"BTC", btc_liq_val);
+        let usdt_liq = test_coins::mint_fa(&fa_admin, b"USDT", usdt_liq_val);
+
+        test_pool::mint_liquidity<USDT, BTC, Uncorrelated>(&lp_owner, usdt_liq, btc_liq);
     }
 
     // Test burn liquidity.
@@ -493,6 +778,14 @@ module liquidswap_v05::liquidity_pool_tests {
             liquidity_pool::get_reserves_size<BTC, USDT, Uncorrelated>(fa_x_metadata, fa_y_metadata);
         assert!(x_res == 60, 5);
         assert!(y_res == 16734, 6);
+
+        // Check pool FA stores directly.
+        let pool_obj_name =
+            string::bytes(&fa_helper::create_pool_obj_name<Uncorrelated>(fa_x_metadata, fa_y_metadata));
+        let pool_fa_store_res_acc_addr =
+            account::create_resource_address(&@liquidswap_pool_account, *pool_obj_name);
+        assert!(primary_fungible_store::balance(pool_fa_store_res_acc_addr, fa_x_metadata) == 60, 7);
+        assert!(primary_fungible_store::balance(pool_fa_store_res_acc_addr, fa_y_metadata) == 16734, 8);
 
         test_coins::burn_fa(&fa_admin, b"BTC", btc_return);
         test_coins::burn_fa(&fa_admin, b"USDT", usdt_return);
@@ -615,6 +908,28 @@ module liquidswap_v05::liquidity_pool_tests {
         test_coins::burn_fa(&fa_admin, b"USDT", usdt_return);
     }
 
+    #[test]
+    #[expected_failure(abort_code = liquidity_pool::ERR_WRONG_PAIR_ORDERING)]
+    fun test_burn_liquidity_wrong_fa_ordering() {
+        let (fa_admin, _) = setup_btc_usdt_pool();
+
+        let btc_fa = test_coins::mint_fa(&fa_admin, b"BTC", 2000000000000);
+        let usdt_fa = test_coins::mint_fa(&fa_admin, b"USDT", 560000000000000);
+
+        let lp_coins =
+            liquidity_pool::mint<BTC, USDT, Uncorrelated>(btc_fa, usdt_fa);
+        assert!(coin::value(&lp_coins) == 33466401060363, 0);
+
+        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"BTC");
+        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+
+        let (btc_return, usdt_return) =
+            liquidity_pool::burn<BTC, USDT, Uncorrelated>(lp_coins, fa_y_metadata, fa_x_metadata);
+
+        test_coins::burn_fa(&fa_admin, b"BTC", btc_return);
+        test_coins::burn_fa(&fa_admin, b"USDT", usdt_return);
+    }
+
     // Test swap.
     #[test]
     fun test_swap_coins() {
@@ -714,18 +1029,36 @@ module liquidswap_v05::liquidity_pool_tests {
                 btc_fa_to_exchange, 0,
                 fungible_asset::zero(fa_y_metadata), 27640424963
             );
-        assert!(fungible_asset::amount(&usdt_fa) == 27640424963, 0);
+        assert!(fungible_asset::amount(&usdt_fa) == 27640424963, 1);
 
         let (x_res, y_res) =
             liquidity_pool::get_reserves_size<BTC, USDT, Uncorrelated>(fa_x_metadata, fa_y_metadata);
-        assert!(x_res == 10099900000, 1);
-        assert!(y_res == 2772359575037, 2);
+        assert!(x_res == 10099900000, 2);
+        assert!(y_res == 2772359575037, 3);
+
+        // Check pool FA stores directly.
+        let pool_obj_name =
+            string::bytes(&fa_helper::create_pool_obj_name<Uncorrelated>(fa_x_metadata, fa_y_metadata));
+        let pool_fa_store_res_acc_addr =
+            account::create_resource_address(&@liquidswap_pool_account, *pool_obj_name);
+        assert!(primary_fungible_store::balance(pool_fa_store_res_acc_addr, fa_x_metadata) == 10099900000, 4);
+        assert!(primary_fungible_store::balance(pool_fa_store_res_acc_addr, fa_y_metadata) == 2772359575037, 5);
+
+        // Check DAO FA stores directly.
+        let storage_creator_addr =
+            account::create_resource_address(&@liquidswap_v05, b"dao_fa_store_sig_cap_seed");
+        let storage_seed =
+            dao_storage::create_fa_storage_seed<Uncorrelated>(fa_x_metadata, fa_y_metadata);
+        let fa_res_acc_addr =
+            account::create_resource_address(&storage_creator_addr, *string::bytes(&storage_seed));
+        assert!(primary_fungible_store::balance(fa_res_acc_addr, fa_x_metadata) == 100000, 6);
+        assert!(primary_fungible_store::balance(fa_res_acc_addr, fa_y_metadata) == 0, 7);
 
         let (x_cum_price, y_cum_price, ts) =
             liquidity_pool::get_cumulative_prices<BTC, USDT, Uncorrelated>(fa_x_metadata, fa_y_metadata);
-        assert!(x_cum_price == 103301766812773489044000, 3);
-        assert!(y_cum_price == 1317624576693539400, 4);
-        assert!(ts == 1660545565 + 20, 5);
+        assert!(x_cum_price == 103301766812773489044000, 8);
+        assert!(y_cum_price == 1317624576693539400, 9);
+        assert!(ts == 1660545565 + 20, 10);
 
         timestamp::fast_forward_seconds(3600);
 
@@ -738,14 +1071,32 @@ module liquidswap_v05::liquidity_pool_tests {
 
         let (x_res, y_res) =
             liquidity_pool::get_reserves_size<BTC, USDT, Uncorrelated>(fa_x_metadata, fa_y_metadata);
-        assert!(x_res == 10099896368, 6);
-        assert!(y_res == 2772360574037, 7);
+        assert!(x_res == 10099896368, 11);
+        assert!(y_res == 2772360574037, 12);
+
+        // Check pool FA stores directly.
+        let pool_obj_name =
+            string::bytes(&fa_helper::create_pool_obj_name<Uncorrelated>(fa_x_metadata, fa_y_metadata));
+        let pool_fa_store_res_acc_addr =
+            account::create_resource_address(&@liquidswap_pool_account, *pool_obj_name);
+        assert!(primary_fungible_store::balance(pool_fa_store_res_acc_addr, fa_x_metadata) == 10099896368, 13);
+        assert!(primary_fungible_store::balance(pool_fa_store_res_acc_addr, fa_y_metadata) == 2772360574037, 14);
+
+        // Check DAO FA stores directly.
+        let storage_creator_addr =
+            account::create_resource_address(&@liquidswap_v05, b"dao_fa_store_sig_cap_seed");
+        let storage_seed =
+            dao_storage::create_fa_storage_seed<Uncorrelated>(fa_x_metadata, fa_y_metadata);
+        let fa_res_acc_addr =
+            account::create_resource_address(&storage_creator_addr, *string::bytes(&storage_seed));
+        assert!(primary_fungible_store::balance(fa_res_acc_addr, fa_x_metadata) == 100000, 15);
+        assert!(primary_fungible_store::balance(fa_res_acc_addr, fa_y_metadata) == 1000, 16);
 
         let (x_cum_price, y_cum_price, ts) =
             liquidity_pool::get_cumulative_prices<BTC, USDT, Uncorrelated>(fa_x_metadata, fa_y_metadata);
-        assert!(x_cum_price == 18331960191116039718441600, 8);
-        assert!(y_cum_price == 243247632405227595000, 9);
-        assert!(ts == 1660545565 + 20 + 3600, 10);
+        assert!(x_cum_price == 18331960191116039718441600, 17);
+        assert!(y_cum_price == 243247632405227595000, 18);
+        assert!(ts == 1660545565 + 20 + 3600, 19);
 
         fungible_asset::destroy_zero(btc_zero);
         fungible_asset::destroy_zero(usdt_zero);
@@ -778,7 +1129,7 @@ module liquidswap_v05::liquidity_pool_tests {
     }
 
     #[test]
-    #[expected_failure(abort_code = liquidity_pool::ERR_EMPTY_COIN_IN)]
+    #[expected_failure(abort_code = liquidity_pool::ERR_EMPTY_FA_IN)]
     fun test_swap_coins_zero_fail() {
         let (fa_admin, lp_owner) = setup_btc_usdt_pool();
 
@@ -1295,6 +1646,29 @@ module liquidswap_v05::liquidity_pool_tests {
 
         fungible_asset::destroy_zero(zero);
         test_coins::burn_fa(&fa_admin, b"USDC", usdc_fa);
+    }
+
+    #[test]
+    #[expected_failure(abort_code = liquidity_pool::ERR_WRONG_PAIR_ORDERING)]
+    fun test_swap_wrong_fa_ordering() {
+        let (fa_admin, lp_owner) = setup_btc_usdt_pool();
+
+        let btc_fa = test_coins::mint_fa(&fa_admin, b"BTC", 100100);
+        let usdt_fa = test_coins::mint_fa(&fa_admin, b"USDT", 100100);
+
+        test_pool::mint_liquidity<BTC, USDT, Uncorrelated>(&lp_owner, btc_fa, usdt_fa);
+
+        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+
+        let btc_fa_to_exchange = test_coins::mint_fa(&fa_admin, b"BTC", 2);
+        let (zero, usdt_fa) =
+            liquidity_pool::swap<USDT, BTC, Uncorrelated>(
+                fungible_asset::zero(fa_y_metadata), 0,
+                btc_fa_to_exchange, 1
+            );
+
+        fungible_asset::destroy_zero(zero);
+        test_coins::burn_fa(&fa_admin, b"USDT", usdt_fa);
     }
 
     // Getters.

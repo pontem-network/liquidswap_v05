@@ -1,10 +1,14 @@
 #[test_only]
 module liquidswap_v05::flashloan_tests {
     use std::signer;
+    use std::string;
+    use aptos_framework::account;
 
     use aptos_framework::coin;
     use aptos_framework::fungible_asset;
+    use aptos_framework::primary_fungible_store;
     use liquidswap_lp::lp_coin::LP;
+    use liquidswap_v05::fa_helper;
 
     use liquidswap_v05::curves::{Uncorrelated, Stable};
     use liquidswap_v05::emergency;
@@ -81,6 +85,14 @@ module liquidswap_v05::flashloan_tests {
         );
         assert!(x_res == 100999000, 2);
         assert!(y_res == 27723595751, 3);
+
+        // Check pool FA stores directly.
+        let pool_obj_name =
+            string::bytes(&fa_helper::create_pool_obj_name<Uncorrelated>(fa_x_metadata, fa_y_metadata));
+        let pool_fa_store_res_acc_addr =
+            account::create_resource_address(&@liquidswap_pool_account, *pool_obj_name);
+        assert!(primary_fungible_store::balance(pool_fa_store_res_acc_addr, fa_x_metadata) == 100999000, 4);
+        assert!(primary_fungible_store::balance(pool_fa_store_res_acc_addr, fa_y_metadata) == 27723595751, 5);
     }
 
     #[test]
@@ -512,7 +524,7 @@ module liquidswap_v05::flashloan_tests {
     }
 
     #[test]
-    #[expected_failure(abort_code = liquidity_pool::ERR_EMPTY_COIN_LOAN)]
+    #[expected_failure(abort_code = liquidity_pool::ERR_EMPTY_FA_LOAN)]
     fun test_fail_if_flashloan_zero_amount() {
         let (_, _) = register_pool_with_liquidity(100000000, 28000000000);
 
@@ -834,6 +846,48 @@ module liquidswap_v05::flashloan_tests {
 
         let btc_fa_to_exchange = test_coins::mint_fa(&fa_admin, b"BTC", 1000000);
         liquidity_pool::pay_flashloan<BTC, USDT, Uncorrelated>(btc_fa_to_exchange, fungible_asset::zero(fa_y_metadata), loan);
+
+        fungible_asset::destroy_zero(zero);
+        test_coins::burn_fa(&fa_admin, b"USDT", usdt_fa);
+    }
+
+    #[test]
+    #[expected_failure(abort_code = liquidity_pool::ERR_WRONG_PAIR_ORDERING)]
+    fun test_flashloan_fail_if_fa_has_wrong_order() {
+        let (_, lp_owner) = test_pool::setup_fa_and_lp_owner();
+
+        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"BTC");
+        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+
+        liquidity_pool::register<BTC, USDT, Uncorrelated>(
+            &lp_owner,
+            fa_x_metadata,
+            fa_y_metadata
+        );
+
+        let (btc_fa, usdt_fa, loan) =
+            liquidity_pool::flashloan<USDT, BTC, Uncorrelated>(12, 34, fa_y_metadata, fa_x_metadata);
+
+        liquidity_pool::pay_flashloan<BTC, USDT, Uncorrelated>(btc_fa, usdt_fa, loan);
+    }
+
+    #[test]
+    #[expected_failure(abort_code = liquidity_pool::ERR_WRONG_PAIR_ORDERING)]
+    fun test_pay_flashloan_fail_if_fa_has_wrong_order() {
+        let (fa_admin, _) = register_pool_with_liquidity(100000000, 28000000000);
+
+        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"BTC");
+        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+
+        let (zero, usdt_fa, loan) =
+            liquidity_pool::flashloan<BTC, USDT, Uncorrelated>(0, 276404249, fa_x_metadata, fa_y_metadata);
+
+        let btc_fa_to_exchange = test_coins::mint_fa(&fa_admin, b"BTC", 1000000);
+        liquidity_pool::pay_flashloan<USDT, BTC, Uncorrelated>(
+            fungible_asset::zero(fa_y_metadata),
+            btc_fa_to_exchange,
+            loan
+        );
 
         fungible_asset::destroy_zero(zero);
         test_coins::burn_fa(&fa_admin, b"USDT", usdt_fa);

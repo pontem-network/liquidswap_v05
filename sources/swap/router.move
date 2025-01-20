@@ -5,7 +5,7 @@ module liquidswap_v05::router {
     use aptos_framework::fungible_asset::{Metadata, FungibleAsset};
     use aptos_framework::object::Object;
 
-    use liquidswap_v05::coin_helper::{Self, supply};
+    use liquidswap_v05::fa_helper::{Self, supply};
     use liquidswap_v05::curves;
     use liquidswap_v05::math;
     use liquidswap_v05::stable_curve;
@@ -50,7 +50,7 @@ module liquidswap_v05::router {
         y_metadata: Object<Metadata>,
     ) {
         // todo: check test exists
-        assert!(coin_helper::is_fa_sorted(x_metadata, y_metadata), ERR_WRONG_COIN_ORDER);
+        assert!(fa_helper::is_fa_sorted(x_metadata, y_metadata), ERR_WRONG_COIN_ORDER);
         liquidity_pool::register<X, Y, Curve>(account, x_metadata, y_metadata);
     }
 
@@ -73,7 +73,7 @@ module liquidswap_v05::router {
         let y_metadata = fungible_asset::metadata_from_asset(&fa_y);
 
         // todo: recheck test exists
-        assert!(coin_helper::is_fa_sorted(x_metadata, y_metadata), ERR_WRONG_COIN_ORDER);
+        assert!(fa_helper::is_fa_sorted(x_metadata, y_metadata), ERR_WRONG_COIN_ORDER);
 
         let fa_x_val = fungible_asset::amount(&fa_x);
         let fa_y_val = fungible_asset::amount(&fa_y);
@@ -116,7 +116,7 @@ module liquidswap_v05::router {
         // todo: fetch metadata from LP?
 
         // todo: recheck test exists
-        assert!(coin_helper::is_fa_sorted(x_metadata, y_metadata), ERR_WRONG_COIN_ORDER);
+        assert!(fa_helper::is_fa_sorted(x_metadata, y_metadata), ERR_WRONG_COIN_ORDER);
 
         let (x_out, y_out) =
             liquidity_pool::burn<X, Y, Curve>(lp_coins, x_metadata, y_metadata);
@@ -198,7 +198,7 @@ module liquidswap_v05::router {
     ): FungibleAsset {
         let (zero, coin_out);
         // todo: check is_sorted test
-        if (coin_helper::is_fa_sorted(x_metadata, y_metadata)) {
+        if (fa_helper::is_fa_sorted(x_metadata, y_metadata)) {
             (zero, coin_out) = liquidity_pool::swap<X, Y, Curve>(
                 fa_in,
                 0,
@@ -228,7 +228,7 @@ module liquidswap_v05::router {
         y_metadata: Object<Metadata>,
     ): (u64, u64) {
         // todo: test fa sort
-        if (coin_helper::is_fa_sorted(x_metadata, y_metadata)) {
+        if (fa_helper::is_fa_sorted(x_metadata, y_metadata)) {
             liquidity_pool::get_decimals_scales<X, Y, Curve>(x_metadata, y_metadata)
         } else {
             let (y, x) = liquidity_pool::get_decimals_scales<Y, X, Curve>(y_metadata, x_metadata);
@@ -244,7 +244,7 @@ module liquidswap_v05::router {
         y_metadata: Object<Metadata>,
     ): (u128, u128, u64) {
         // todo: test fa_sorted with this func
-        if (coin_helper::is_fa_sorted(x_metadata, y_metadata)) {
+        if (fa_helper::is_fa_sorted(x_metadata, y_metadata)) {
             liquidity_pool::get_cumulative_prices<X, Y, Curve>(x_metadata, y_metadata)
         } else {
             let (y, x, t) =
@@ -262,7 +262,7 @@ module liquidswap_v05::router {
         y_metadata: Object<Metadata>,
     ): (u64, u64) {
         // todo: add some test?
-        if (coin_helper::is_fa_sorted(x_metadata, y_metadata)) {
+        if (fa_helper::is_fa_sorted(x_metadata, y_metadata)) {
             liquidity_pool::get_reserves_size<X, Y, Curve>(x_metadata, y_metadata)
         } else {
             let (y_res, x_res) = liquidity_pool::get_reserves_size<Y, X, Curve>(y_metadata, x_metadata);
@@ -277,7 +277,7 @@ module liquidswap_v05::router {
         y_metadata: Object<Metadata>,
     ): (u64, u64) {
         // todo: add extra test for is_fa_sorted part here
-        if (coin_helper::is_fa_sorted(x_metadata, y_metadata)) {
+        if (fa_helper::is_fa_sorted(x_metadata, y_metadata)) {
             liquidity_pool::get_fees_config<X, Y, Curve>(x_metadata, y_metadata)
         } else {
             liquidity_pool::get_fees_config<Y, X, Curve>(y_metadata, x_metadata)
@@ -291,7 +291,7 @@ module liquidswap_v05::router {
         y_metadata: Object<Metadata>,
     ): u64 {
         // todo: add extra test for is_fa_sorted part here
-        if (coin_helper::is_fa_sorted(x_metadata, y_metadata)) {
+        if (fa_helper::is_fa_sorted(x_metadata, y_metadata)) {
             liquidity_pool::get_fee<X, Y, Curve>(x_metadata, y_metadata)
         } else {
             liquidity_pool::get_fee<Y, X, Curve>(y_metadata, x_metadata)
@@ -305,7 +305,7 @@ module liquidswap_v05::router {
         y_metadata: Object<Metadata>,
     ): (u64, u64) {
         // todo: test is_fa_sorted here?
-        if (coin_helper::is_fa_sorted(x_metadata, y_metadata)) {
+        if (fa_helper::is_fa_sorted(x_metadata, y_metadata)) {
             liquidity_pool::get_dao_fees_config<X, Y, Curve>(
                 x_metadata,
                 y_metadata,
@@ -325,7 +325,7 @@ module liquidswap_v05::router {
         y_metadata: Object<Metadata>,
     ): u64 {
         // todo: test is_fa_sorted here?
-        if (coin_helper::is_fa_sorted(x_metadata, y_metadata)) {
+        if (fa_helper::is_fa_sorted(x_metadata, y_metadata)) {
             liquidity_pool::get_dao_fee<X, Y, Curve>(
                 x_metadata,
                 y_metadata,
@@ -346,7 +346,7 @@ module liquidswap_v05::router {
         y_metadata: Object<Metadata>,
     ): bool {
         // todo: add extra test for is_fa_sorted part here
-        if (coin_helper::is_fa_sorted(x_metadata, y_metadata)) {
+        if (fa_helper::is_fa_sorted(x_metadata, y_metadata)) {
             liquidity_pool::is_pool_exists<X, Y, Curve>(x_metadata, y_metadata)
         } else {
             liquidity_pool::is_pool_exists<Y, X, Curve>(y_metadata, x_metadata)

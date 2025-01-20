@@ -1,6 +1,5 @@
-/// The `CoinHelper` module contains helper funcs to work with `AptosFramework::Coin` module.
-// todo: ... => FA_helper?
-module liquidswap_v05::coin_helper {
+/// The `FAHelper` module contains helper funcs to work with `AptosFramework::FungibleAsset` module.
+module liquidswap_v05::fa_helper {
     use std::option;
     use std::string::{Self, String};
 
@@ -18,8 +17,8 @@ module liquidswap_v05::coin_helper {
 
     // Errors codes.
 
-    /// When both coins have same names and can't be ordered.
-    const ERR_CANNOT_BE_THE_SAME_COIN: u64 = 3000;
+    /// When both FA have same names and can't be ordered.
+    const ERR_CANNOT_BE_THE_SAME_FA: u64 = 3000;
 
     /// When provided CoinType is not a coin.
     const ERR_IS_NOT_COIN: u64 = 3001;
@@ -32,6 +31,8 @@ module liquidswap_v05::coin_helper {
     public fun assert_is_coin<CoinType>() {
         assert!(coin::is_coin_initialized<CoinType>(), ERR_IS_NOT_COIN);
     }
+
+    // todo: refactore this file
 
     // todo: add tests!
     // todo: update description
@@ -80,12 +81,14 @@ module liquidswap_v05::coin_helper {
         address_cmp
     }
 
+    // todo: test
+    // todo: same metadata\symbol test
     // todo: change description
     /// Check that coins generics `X`, `Y` are sorted in correct ordering.
     /// X != Y && X.symbol < Y.symbol
     public fun is_fa_sorted(x_metadata: Object<Metadata>, y_metadata: Object<Metadata>): bool {
         let order = compare_fa(x_metadata, y_metadata);
-        assert!(!comparator::is_equal(&order), ERR_CANNOT_BE_THE_SAME_COIN);
+        assert!(!comparator::is_equal(&order), ERR_CANNOT_BE_THE_SAME_FA);
         comparator::is_smaller_than(&order)
     }
 
@@ -93,7 +96,7 @@ module liquidswap_v05::coin_helper {
     /// X != Y && X.symbol < Y.symbol
     public fun is_sorted<X, Y>(): bool {
         let order = compare<X, Y>();
-        assert!(!comparator::is_equal(&order), ERR_CANNOT_BE_THE_SAME_COIN);
+        assert!(!comparator::is_equal(&order), ERR_CANNOT_BE_THE_SAME_FA);
         comparator::is_smaller_than(&order)
     }
 
