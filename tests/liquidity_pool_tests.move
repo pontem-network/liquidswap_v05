@@ -1234,6 +1234,24 @@ module liquidswap_v05::liquidity_pool_tests {
         assert!(x_res == 9999999997, 2);
         assert!(y_res == 2800112001961, 3);
 
+        // Check pool FA stores directly.
+        let pool_obj_name =
+            string::bytes(&fa_helper::create_pool_obj_name<Uncorrelated>(fa_x_metadata, fa_y_metadata));
+        let pool_fa_store_res_acc_addr =
+            account::create_resource_address(&@liquidswap_pool_account, *pool_obj_name);
+        assert!(primary_fungible_store::balance(pool_fa_store_res_acc_addr, fa_x_metadata) == 9999999997, 4);
+        assert!(primary_fungible_store::balance(pool_fa_store_res_acc_addr, fa_y_metadata) == 2800112001961, 5);
+
+        // Check DAO FA stores directly.
+        let storage_creator_addr =
+            account::create_resource_address(&@liquidswap_v05, b"dao_fa_store_sig_cap_seed");
+        let storage_seed =
+            dao_storage::create_fa_storage_seed<Uncorrelated>(fa_x_metadata, fa_y_metadata);
+        let fa_res_acc_addr =
+            account::create_resource_address(&storage_creator_addr, *string::bytes(&storage_seed));
+        assert!(primary_fungible_store::balance(fa_res_acc_addr, fa_x_metadata) == 100000, 6);
+        assert!(primary_fungible_store::balance(fa_res_acc_addr, fa_y_metadata) == 28000000, 7);
+
         test_coins::burn_fa(&fa_admin, b"BTC", btc_fa);
         test_coins::burn_fa(&fa_admin, b"USDT", usdt_fa);
     }

@@ -83,6 +83,7 @@ module liquidswap_v05::liquidity_pool {
     // Public functions.
 
     // todo: recheck do we need #[resource_group_member(group = aptos_framework::object::ObjectGroup)] ?
+    // todo: is it possible to replenish pool balance directly and ruine some calculations?
 
     /// Liquidity pool with reserve metadatas.
     struct LiquidityPool<phantom X, phantom Y, phantom Curve> has key {
@@ -514,13 +515,12 @@ module liquidswap_v05::liquidity_pool {
 
         let Flashloan { x_loan, y_loan, attached_pool_obj_addr } = loan;
 
-        // todo: TEST this!
+        // todo: TEST this! after LP => FA
         assert!(pool_addr == attached_pool_obj_addr, ERR_WRONG_POOL);
 
         let x_in_val = fungible_asset::amount(&x_in);
         let y_in_val = fungible_asset::amount(&y_in);
 
-        // todo: seems no test for that
         assert!(x_in_val > 0 || y_in_val > 0, ERR_EMPTY_FA_IN);
 
         let fa_res_acc =
@@ -535,7 +535,6 @@ module liquidswap_v05::liquidity_pool {
         y_reserve_size = y_reserve_size + y_loan;
 
         // Deposit into fungible stores of X and Y FA's.
-        // todo: add check in flashloan tests <================================
         primary_fungible_store::deposit(fa_res_acc_addr, x_in);
         primary_fungible_store::deposit(fa_res_acc_addr, y_in);
 
@@ -558,8 +557,8 @@ module liquidswap_v05::liquidity_pool {
             x_res_new_after_fee,
             y_res_new_after_fee,
         );
+
         // Third of all fees goes into DAO.
-        // todo: ADD CHECK FOR DAO FA'S STORES?
         split_fee_to_dao(pool, &fa_res_acc, x_in_val, y_in_val, x_metadata, y_metadata);
 
         // As we are in same block, don't need to update oracle, it's already updated during flashloan initalization.
@@ -641,7 +640,6 @@ module liquidswap_v05::liquidity_pool {
         let dao_y_fee_val = math::mul_div(y_in_val, dao_fee_multiplier, FEE_SCALE);
 
         // Withdraw DAO fee from FA stores.
-        // todo: add check in SWAP DAO FEE tests <================================
         let dao_x_in = primary_fungible_store::withdraw(fa_res_acc, x_metadata, dao_x_fee_val);
         let dao_y_in = primary_fungible_store::withdraw(fa_res_acc, y_metadata, dao_y_fee_val);
 
@@ -680,13 +678,14 @@ module liquidswap_v05::liquidity_pool {
         };
     }
 
-    // todo: upd descr
     /// Update current cumulative prices.
     /// Important: If you want to use the following function take into account prices can be overflowed.
     /// So it's important to use same logic in your math/algo (as Move doesn't allow overflow). See math::overflow_add.
     /// * `pool` - Liquidity pool to update prices.
     /// * `x_reserve` - FA X reserves.
     /// * `y_reserve` - FA Y reserves.
+    /// * `x_metadata` - metadata object of FungibleAsset X.
+    /// * `y_metadata` - metadata object of FungibleAsset Y.
     fun update_oracle<X, Y, Curve>(
         pool: &mut LiquidityPool<X, Y, Curve>,
         x_reserve: u64,
@@ -738,7 +737,6 @@ module liquidswap_v05::liquidity_pool {
     ): bool acquires LiquidityPool, PoolAccountCapability {
         assert!(fa_helper::is_fa_sorted(x_metadata, y_metadata), ERR_WRONG_PAIR_ORDERING);
 
-        // todo: remove PoolAccountCapability usage?
         let pool_obj_addr = get_pool_addr<X, Y, Curve>(x_metadata, y_metadata);
         assert!(object::object_exists<LiquidityPool<X, Y, Curve>>(pool_obj_addr), ERR_POOL_DOES_NOT_EXIST);
 
@@ -757,13 +755,11 @@ module liquidswap_v05::liquidity_pool {
         assert_no_emergency();
         assert!(fa_helper::is_fa_sorted(x_metadata, y_metadata), ERR_WRONG_PAIR_ORDERING);
 
-        // todo: remove PoolAccountCapability usage?
         let pool_obj_addr = get_pool_addr<X, Y, Curve>(x_metadata, y_metadata);
         assert!(object::object_exists<LiquidityPool<X, Y, Curve>>(pool_obj_addr), ERR_POOL_DOES_NOT_EXIST);
 
         let liquidity_pool = borrow_global<LiquidityPool<X, Y, Curve>>(pool_obj_addr);
 
-        // todo: test after move of this line?
         assert_pool_unlocked(liquidity_pool);
 
         let fa_res_acc_addr =
@@ -789,12 +785,11 @@ module liquidswap_v05::liquidity_pool {
         assert_no_emergency();
         assert!(fa_helper::is_fa_sorted(x_metadata, y_metadata), ERR_WRONG_PAIR_ORDERING);
 
-        // todo: remove PoolAccountCapability usage?
         let pool_obj_addr = get_pool_addr<X, Y, Curve>(x_metadata, y_metadata);
         assert!(exists<LiquidityPool<X, Y, Curve>>(pool_obj_addr), ERR_POOL_DOES_NOT_EXIST);
 
         let liquidity_pool = borrow_global<LiquidityPool<X, Y, Curve>>(pool_obj_addr);
-        // todo: test after line move from above
+
         assert_pool_unlocked<X, Y, Curve>(liquidity_pool);
 
         let last_price_x_cumulative = *&liquidity_pool.last_price_x_cumulative;
@@ -814,7 +809,6 @@ module liquidswap_v05::liquidity_pool {
     ): (u64, u64) acquires LiquidityPool, PoolAccountCapability {
         assert!(fa_helper::is_fa_sorted(x_metadata, y_metadata), ERR_WRONG_PAIR_ORDERING);
 
-        // todo: remove PoolAccountCapability usage?
         let pool_obj_addr = get_pool_addr<X, Y, Curve>(x_metadata, y_metadata);
         assert!(exists<LiquidityPool<X, Y, Curve>>(pool_obj_addr), ERR_POOL_DOES_NOT_EXIST);
 
@@ -863,8 +857,9 @@ module liquidswap_v05::liquidity_pool {
         pool.fee
     }
 
-    // todo: upd descr
     /// Set fee for specific pool.
+    /// * `fee_admin` - signer, able to set fee.
+    /// * `fee` - new fee to set.
     /// * `x_metadata` - metadata object of FungibleAsset X.
     /// * `y_metadata` - metadata object of FungibleAsset Y.
     public entry fun set_fee<X, Y, Curve>(
@@ -925,8 +920,9 @@ module liquidswap_v05::liquidity_pool {
         pool.dao_fee
     }
 
-    // todo: upd descr
     /// Set DAO fee for specific pool.
+    /// * `fee_admin` - signer, able to set dao fee.
+    /// * `dao_fee` - new dao fee to set.
     /// * `x_metadata` - metadata object of FungibleAsset X.
     /// * `y_metadata` - metadata object of FungibleAsset Y.
     public entry fun set_dao_fee<X, Y, Curve>(
@@ -935,7 +931,6 @@ module liquidswap_v05::liquidity_pool {
         x_metadata: Object<Metadata>,
         y_metadata: Object<Metadata>,
     ) acquires LiquidityPool, PoolAccountCapability, EventsStore {
-        // todo: recheck fa sorted test exists
         assert!(fa_helper::is_fa_sorted(x_metadata, y_metadata), ERR_WRONG_PAIR_ORDERING);
         assert!(exists<PoolAccountCapability>(@liquidswap_v05), ERR_POOL_DOES_NOT_EXIST);
 
@@ -1079,7 +1074,6 @@ module liquidswap_v05::liquidity_pool {
     ): (u128, u128, u64) acquires EventsStore, LiquidityPool, PoolAccountCapability {
         register<X, Y, curves::Uncorrelated>(test_account, x_metadata, y_metadata);
 
-        // todo: remove PoolAccountCapability usage?
         let pool_obj_addr = get_pool_addr<X, Y, curves::Uncorrelated>(x_metadata, y_metadata);
         assert!(exists<LiquidityPool<X, Y, curves::Uncorrelated>>(pool_obj_addr), ERR_POOL_DOES_NOT_EXIST);
 
@@ -1094,13 +1088,11 @@ module liquidswap_v05::liquidity_pool {
         (pool.last_price_x_cumulative, pool.last_price_y_cumulative, pool.last_block_timestamp)
     }
 
-    // todo: remove this and use other func?
     #[test_only]
     public fun get_reserved_value<X, Y, Curve>(
         x_metadata: Object<Metadata>,
         y_metadata: Object<Metadata>,
     ): u64 acquires LiquidityPool, PoolAccountCapability {
-        // todo: remove PoolAccountCapability usage?
         let pool_obj_addr = get_pool_addr<X, Y, curves::Uncorrelated>(x_metadata, y_metadata);
         assert!(exists<LiquidityPool<X, Y, curves::Uncorrelated>>(pool_obj_addr), ERR_POOL_DOES_NOT_EXIST);
 
