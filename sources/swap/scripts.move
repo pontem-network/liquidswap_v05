@@ -2,13 +2,12 @@
 module liquidswap_v05::scripts {
     use std::signer;
 
-    use aptos_framework::coin;
     use aptos_framework::fungible_asset::Metadata;
     use aptos_framework::object::Object;
     use aptos_framework::primary_fungible_store;
 
     use liquidswap_v05::router;
-    use liquidswap_lp::lp_coin::LP;
+    use liquidswap_v05::liquidity_pool;
 
     /// Register a new liquidity pool for `X`/`Y` pair.
     /// * `account` - pool creator signer.
@@ -54,7 +53,7 @@ module liquidswap_v05::scripts {
         );
     }
 
-    /// Add new liquidity into pool `X`/`Y` and get liquidity coin `LP`.
+    /// Add new liquidity into pool `X`/`Y` and get liquidity FA `LP`.
     /// * `account` - liquidity adding signer.
     /// * `fa_x_val` - amount of fa `X` to add as liquidity.
     /// * `fa_x_val_min` - minimum amount of fa `X` to add as liquidity (slippage).
@@ -76,7 +75,7 @@ module liquidswap_v05::scripts {
         let fa_x = primary_fungible_store::withdraw(account, x_metadata, fa_x_val);
         let fa_y = primary_fungible_store::withdraw(account, y_metadata, fa_y_val);
 
-        let (fa_x_remainder, fa_y_remainder, lp_coins) =
+        let (fa_x_remainder, fa_y_remainder, lp_fa) =
             router::add_liquidity<X, Y, Curve>(
                 fa_x,
                 fa_x_val_min,
@@ -85,19 +84,14 @@ module liquidswap_v05::scripts {
             );
 
         let account_addr = signer::address_of(account);
-
-        if (!coin::is_account_registered<LP<X, Y, Curve>>(account_addr)) {
-            coin::register<LP<X, Y, Curve>>(account);
-        };
-
         primary_fungible_store::deposit(account_addr, fa_x_remainder);
         primary_fungible_store::deposit(account_addr, fa_y_remainder);
-        coin::deposit(account_addr, lp_coins);
+        primary_fungible_store::deposit(account_addr, lp_fa);
     }
 
-    /// Remove (burn) liquidity coins `LP` from account, get `X` and`Y` FA's back.
+    /// Remove (burn) liquidity FA `LP` from account, get `X` and`Y` FA's back.
     /// * `account` - liquidity burning signer.
-    /// * `lp_val` - amount of `LP` coins to burn.
+    /// * `lp_val` - amount of `LP` FA to burn.
     /// * `min_x_out_val` - minimum amount of X FA to get.
     /// * `min_y_out_val` - minimum amount of Y FA to get.
     /// * `x_metadata` - metadata object of FungibleAsset X.
@@ -112,11 +106,12 @@ module liquidswap_v05::scripts {
         x_metadata: Object<Metadata>,
         y_metadata: Object<Metadata>,
     ) {
-        let lp_coins = coin::withdraw<LP<X, Y, Curve>>(account, lp_val);
+        let lp_metadata = liquidity_pool::get_pool_lp_metadata<X, Y, Curve>(x_metadata, y_metadata);
+        let lp_fa = primary_fungible_store::withdraw(account, lp_metadata, lp_val);
 
         let (fa_x, fa_y) =
             router::remove_liquidity<X, Y, Curve>(
-                lp_coins,
+                lp_fa,
                 min_x_out_val,
                 min_y_out_val,
                 x_metadata,

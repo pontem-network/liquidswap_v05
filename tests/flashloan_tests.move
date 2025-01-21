@@ -1,15 +1,13 @@
 #[test_only]
 module liquidswap_v05::flashloan_tests {
-    use std::option;
     use std::signer;
     use std::string;
     use aptos_framework::account;
 
-    use aptos_framework::coin;
     use aptos_framework::fungible_asset;
+    use aptos_framework::fungible_asset::Metadata;
     use aptos_framework::object;
     use aptos_framework::primary_fungible_store;
-    use liquidswap_lp::lp_coin::LP;
     use liquidswap_v05::dao_storage;
     use liquidswap_v05::fa_helper;
 
@@ -32,10 +30,9 @@ module liquidswap_v05::flashloan_tests {
         if (x_val != 0 && y_val != 0) {
             let btc_fa = test_coins::mint_fa(&fa_admin, b"BTC", x_val);
             let usdt_fa = test_coins::mint_fa(&fa_admin, b"USDT", y_val);
-            let lp_coins =
+            let lp_fa =
                 liquidity_pool::mint<BTC, USDT, Uncorrelated>(btc_fa, usdt_fa);
-            coin::register<LP<BTC, USDT, Uncorrelated>>(&lp_owner);
-            coin::deposit<LP<BTC, USDT, Uncorrelated>>(lp_owner_addr, lp_coins);
+            primary_fungible_store::deposit(lp_owner_addr, lp_fa);
         };
 
         (fa_admin, lp_owner)
@@ -52,10 +49,9 @@ module liquidswap_v05::flashloan_tests {
         if (x_val != 0 && y_val != 0) {
             let usdc_fa = test_coins::mint_fa(&fa_admin, b"USDC", x_val);
             let usdt_fa = test_coins::mint_fa(&fa_admin, b"USDT", y_val);
-            let lp_coins =
+            let lp_fa =
                 liquidity_pool::mint<USDC, USDT, Stable>(usdc_fa, usdt_fa);
-            coin::register<LP<USDC, USDT, Stable>>(&lp_owner);
-            coin::deposit<LP<USDC, USDT, Stable>>(signer::address_of(&lp_owner), lp_coins);
+            primary_fungible_store::deposit(signer::address_of(&lp_owner), lp_fa);
         };
 
         (fa_admin, lp_owner)
@@ -650,9 +646,9 @@ module liquidswap_v05::flashloan_tests {
         // mint when pool is locked
         let btc_fa_mint = test_coins::mint_fa(&fa_admin, b"BTC", 1000000);
         let usdt_fa_mint = test_coins::mint_fa(&fa_admin, b"USDT", 280000000);
-        let lp_coins_mint =
+        let lp_fa_mint =
             liquidity_pool::mint<BTC, USDT, Uncorrelated>(btc_fa_mint, usdt_fa_mint);
-        coin::deposit(signer::address_of(&lp_owner), lp_coins_mint);
+        primary_fungible_store::deposit(signer::address_of(&lp_owner), lp_fa_mint);
 
         let btc_fa_to_exchange = test_coins::mint_fa(&fa_admin, b"BTC", 2);
         liquidity_pool::pay_flashloan<BTC, USDT, Uncorrelated>(btc_fa_to_exchange, fungible_asset::zero(fa_y_metadata), loan);
@@ -712,11 +708,20 @@ module liquidswap_v05::flashloan_tests {
             );
         assert!(fungible_asset::amount(&usdt_fa) == 276404249, 1);
 
+        // Create LP metadata.
+        let pool_obj_name =
+            string::bytes(&fa_helper::create_pool_obj_name<Uncorrelated>(fa_x_metadata, fa_y_metadata));
+        let lp_fa_obj_seed = string::utf8(*pool_obj_name);
+        string::append_utf8( &mut lp_fa_obj_seed, b"-LP");
+        let lp_fa_obj_addr =
+            object::create_object_address(&@liquidswap_pool_account, *string::bytes(&lp_fa_obj_seed));
+        let lp_metadata = object::address_to_object<Metadata>(lp_fa_obj_addr);
+
         // burn when pool is locked
-        let lp_coins =
-            coin::withdraw<LP<BTC, USDT, Uncorrelated>>(&lp_owner, 16733190);
+        let lp_fa =
+            primary_fungible_store::withdraw(&lp_owner, lp_metadata, 16733190);
         let (btc_return, usdt_return) =
-            liquidity_pool::burn<BTC, USDT, Uncorrelated>(lp_coins, fa_x_metadata, fa_y_metadata);
+            liquidity_pool::burn<BTC, USDT, Uncorrelated>(lp_fa, fa_x_metadata, fa_y_metadata);
         test_coins::burn_fa(&fa_admin, b"BTC", btc_return);
         test_coins::burn_fa(&fa_admin, b"USDT", usdt_return);
 

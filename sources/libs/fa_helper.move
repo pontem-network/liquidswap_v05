@@ -100,10 +100,10 @@ module liquidswap_v05::fa_helper {
         comparator::is_smaller_than(&order)
     }
 
-    /// Get supply for `CoinType`.
-    /// Would throw error if supply for `CoinType` doesn't exist.
-    public fun supply<CoinType>(): u128 {
-        option::extract(&mut coin::supply<CoinType>())
+    /// Get supply of FungibleAsset.
+    /// Would throw error if supply for FungibleAsset doesn't exist.
+    public fun fa_supply(fa_metadata: Object<Metadata>): u128 {
+        option::extract(&mut fungible_asset::supply(fa_metadata))
     }
 
     /// Generate LP coin name and symbol for pair `X`/`Y` and curve `Curve`.
@@ -155,7 +155,10 @@ module liquidswap_v05::fa_helper {
     /// ```
     /// For example, for `LP<BTC, USDT, Uncorrelated>`,
     /// the result will be `(b"LiquidLP-BTC-USDT+", b"BTC-USDT+")`
-    public fun fa_generate_lp_name_and_symbol<Curve>(x_metadata: Object<Metadata>, y_metadata: Object<Metadata>): (String, String) {
+    public fun fa_generate_lp_name_and_symbol<Curve>(
+        x_metadata: Object<Metadata>,
+        y_metadata: Object<Metadata>,
+    ): (String, String) {
         // todo: ATTENTION, add FA metadata addr to LP name generation to prevent collisions?
         let lp_name = string::utf8(b"");
         string::append_utf8(&mut lp_name, b"LS05 LP-");

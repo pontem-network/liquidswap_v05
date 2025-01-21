@@ -1,7 +1,6 @@
 module liquidswap_v05::dao_storage {
     use std::signer;
     use std::string::{Self, String};
-    use aptos_std::string_utils;
 
     use aptos_framework::account;
     use aptos_framework::account::SignerCapability;

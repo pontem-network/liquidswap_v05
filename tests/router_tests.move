@@ -2,11 +2,9 @@
 module liquidswap_v05::router_tests {
     use std::signer;
 
-    use aptos_framework::coin;
     use aptos_framework::fungible_asset;
     use aptos_framework::primary_fungible_store;
     use aptos_framework::timestamp;
-    use liquidswap_lp::lp_coin::LP;
 
     use liquidswap_v05::curves::{Uncorrelated, Stable};
     use liquidswap_v05::liquidity_pool;
@@ -32,10 +30,9 @@ module liquidswap_v05::router_tests {
         if (x_val != 0 && y_val != 0) {
             let btc_fa = test_coins::mint_fa(&fa_admin,  b"BTC", x_val);
             let usdt_fa = test_coins::mint_fa(&fa_admin,  b"USDT", y_val);
-            let lp_coins =
+            let lp_fa =
                 liquidity_pool::mint<BTC, USDT, Uncorrelated>(btc_fa, usdt_fa);
-            coin::register<LP<BTC, USDT, Uncorrelated>>(&lp_owner);
-            coin::deposit<LP<BTC, USDT, Uncorrelated>>(lp_owner_addr, lp_coins);
+            primary_fungible_store::deposit(lp_owner_addr, lp_fa);
         };
 
         (fa_admin, lp_owner)
@@ -57,10 +54,9 @@ module liquidswap_v05::router_tests {
         if (x_val != 0 && y_val != 0) {
             let usdc_fa = test_coins::mint_fa(&fa_admin,  b"USDC", x_val);
             let usdt_fa = test_coins::mint_fa(&fa_admin,  b"USDT", y_val);
-            let lp_coins =
+            let lp_fa =
                 liquidity_pool::mint<USDC, USDT, Stable>(usdc_fa, usdt_fa);
-            coin::register<LP<USDC, USDT, Stable>>(&lp_owner);
-            coin::deposit<LP<USDC, USDT, Stable>>(lp_owner_addr, lp_coins);
+            primary_fungible_store::deposit(lp_owner_addr, lp_fa);
         };
 
         (fa_admin, lp_owner)
@@ -88,7 +84,7 @@ module liquidswap_v05::router_tests {
         let btc_fa = test_coins::mint_fa(&fa_admin,  b"BTC", 101);
         let usdt_fa = test_coins::mint_fa(&fa_admin,  b"USDT", 10100);
 
-        let (coin_x, coin_y, lp_coins) =
+        let (coin_x, coin_y, lp_fa) =
             router::add_liquidity<BTC, USDT, Uncorrelated>(
                 btc_fa,
                 101,
@@ -99,13 +95,11 @@ module liquidswap_v05::router_tests {
         assert!(fungible_asset::amount(&coin_x) == 0, 0);
         assert!(fungible_asset::amount(&coin_y) == 0, 1);
         // 1010 - 1000 = 10
-        assert!(coin::value(&lp_coins) == 10, 2);
-
-        coin::register<LP<BTC, USDT, Uncorrelated>>(&lp_owner);
+        assert!(fungible_asset::amount(&lp_fa) == 10, 2);
 
         primary_fungible_store::deposit(signer::address_of(&lp_owner), coin_x);
         primary_fungible_store::deposit(signer::address_of(&lp_owner), coin_y);
-        coin::deposit(signer::address_of(&lp_owner), lp_coins);
+        primary_fungible_store::deposit(signer::address_of(&lp_owner), lp_fa);
     }
 
     #[test]
@@ -115,7 +109,7 @@ module liquidswap_v05::router_tests {
         let btc_fa = test_coins::mint_fa(&fa_admin,  b"BTC", 101);
         let usdt_fa = test_coins::mint_fa(&fa_admin,  b"USDT", 9000);
 
-        let (coin_x, coin_y, lp_coins) =
+        let (coin_x, coin_y, lp_fa) =
             router::add_liquidity<BTC, USDT, Uncorrelated>(
                 btc_fa,
                 10,
@@ -125,11 +119,11 @@ module liquidswap_v05::router_tests {
         assert!(fungible_asset::amount(&coin_x) == 11, 0);
         assert!(fungible_asset::amount(&coin_y) == 0, 1);
 
-        assert!(coin::value(&lp_coins) == 900, 2);
+        assert!(fungible_asset::amount(&lp_fa) == 900, 2);
 
         primary_fungible_store::deposit(signer::address_of(&lp_owner), coin_x);
         primary_fungible_store::deposit(signer::address_of(&lp_owner), coin_y);
-        coin::deposit(signer::address_of(&lp_owner), lp_coins);
+        primary_fungible_store::deposit(signer::address_of(&lp_owner), lp_fa);
     }
 
     #[test]
@@ -140,7 +134,7 @@ module liquidswap_v05::router_tests {
         let btc_fa = test_coins::mint_fa(&fa_admin,  b"BTC", 101);
         let usdt_fa = test_coins::mint_fa(&fa_admin,  b"USDT", 9000);
 
-        let (coin_y, coin_x, lp_coins) =
+        let (coin_y, coin_x, lp_fa) =
             router::add_liquidity<USDT, BTC, Uncorrelated>(
                 usdt_fa,
                 9000,
@@ -150,7 +144,7 @@ module liquidswap_v05::router_tests {
 
         primary_fungible_store::deposit(signer::address_of(&lp_owner), coin_x);
         primary_fungible_store::deposit(signer::address_of(&lp_owner), coin_y);
-        coin::deposit(signer::address_of(&lp_owner), lp_coins);
+        primary_fungible_store::deposit(signer::address_of(&lp_owner), lp_fa);
     }
 
     #[test]
@@ -161,7 +155,7 @@ module liquidswap_v05::router_tests {
         let btc_fa = test_coins::mint_fa(&fa_admin,  b"BTC", 101);
         let usdt_fa = test_coins::mint_fa(&fa_admin,  b"USDT", 9000);
 
-        let (coin_y, coin_x, lp_coins) =
+        let (coin_y, coin_x, lp_fa) =
             router::add_liquidity<BTC, USDT, Uncorrelated>(
                 btc_fa,
                 102,
@@ -171,7 +165,7 @@ module liquidswap_v05::router_tests {
 
         primary_fungible_store::deposit(signer::address_of(&lp_owner), coin_x);
         primary_fungible_store::deposit(signer::address_of(&lp_owner), coin_y);
-        coin::deposit(signer::address_of(&lp_owner), lp_coins);
+        primary_fungible_store::deposit(signer::address_of(&lp_owner), lp_fa);
     }
 
     #[test]
@@ -182,7 +176,7 @@ module liquidswap_v05::router_tests {
         let btc_fa = test_coins::mint_fa(&fa_admin,  b"BTC", 101);
         let usdt_fa = test_coins::mint_fa(&fa_admin,  b"USDT", 9000);
 
-        let (coin_y, coin_x, lp_coins) =
+        let (coin_y, coin_x, lp_fa) =
             router::add_liquidity<BTC, USDT, Uncorrelated>(
                 btc_fa,
                 101,
@@ -192,29 +186,30 @@ module liquidswap_v05::router_tests {
 
         primary_fungible_store::deposit(signer::address_of(&lp_owner), coin_x);
         primary_fungible_store::deposit(signer::address_of(&lp_owner), coin_y);
-        coin::deposit(signer::address_of(&lp_owner), lp_coins);
+        primary_fungible_store::deposit(signer::address_of(&lp_owner), lp_fa);
     }
 
     #[test]
     fun test_remove_liquidity() {
         let (_, lp_owner) = register_pool_with_liquidity(101, 10100);
 
-        let lp_coins_val = 10;
-
-        let lp_coins_to_burn =
-            coin::withdraw<LP<BTC, USDT, Uncorrelated>>(&lp_owner, lp_coins_val);
-
         let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"BTC");
         let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
 
+        let lp_metadata =
+            liquidity_pool::get_pool_lp_metadata<BTC, USDT, Uncorrelated>(fa_x_metadata, fa_y_metadata);
+        let lp_fa_val = 10;
+        let lp_fa_to_burn =
+            primary_fungible_store::withdraw(&lp_owner, lp_metadata, lp_fa_val);
+
         let (x_out, y_out) = router::get_reserves_for_lp_coins<BTC, USDT, Uncorrelated>(
-            lp_coins_val,
+            lp_fa_val,
             fa_x_metadata,
             fa_y_metadata,
         );
         let (coin_x, coin_y) =
             router::remove_liquidity<BTC, USDT, Uncorrelated>(
-                lp_coins_to_burn,
+                lp_fa_to_burn,
                 x_out,
                 y_out,
                 fa_x_metadata,
@@ -242,22 +237,23 @@ module liquidswap_v05::router_tests {
     fun test_remove_liquidity_to_fail_if_less_than_minimum_x() {
         let (_, lp_owner) = register_pool_with_liquidity(101, 10100);
 
-        let lp_coins_val = 10;
-
-        let lp_coins_to_burn =
-            coin::withdraw<LP<BTC, USDT, Uncorrelated>>(&lp_owner, lp_coins_val);
-
         let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"BTC");
         let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
 
+        let lp_metadata =
+            liquidity_pool::get_pool_lp_metadata<BTC, USDT, Uncorrelated>(fa_x_metadata, fa_y_metadata);
+        let lp_fa_val = 10;
+        let lp_fa_to_burn =
+            primary_fungible_store::withdraw(&lp_owner, lp_metadata, lp_fa_val);
+
         let (x_out, y_out) = router::get_reserves_for_lp_coins<BTC, USDT, Uncorrelated>(
-            lp_coins_val,
+            lp_fa_val,
             fa_x_metadata,
             fa_y_metadata,
         );
         let (coin_x, coin_y) =
             router::remove_liquidity<BTC, USDT, Uncorrelated>(
-                lp_coins_to_burn,
+                lp_fa_to_burn,
                 x_out * 2,
                 y_out,
                 fa_x_metadata,
@@ -273,22 +269,23 @@ module liquidswap_v05::router_tests {
     fun test_remove_liquidity_to_fail_if_less_than_minimum_y() {
         let (_, lp_owner) = register_pool_with_liquidity(101, 10100);
 
-        let lp_coins_val = 10;
-
-        let lp_coins_to_burn =
-            coin::withdraw<LP<BTC, USDT, Uncorrelated>>(&lp_owner, lp_coins_val);
-
         let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"BTC");
         let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
 
+        let lp_metadata =
+            liquidity_pool::get_pool_lp_metadata<BTC, USDT, Uncorrelated>(fa_x_metadata, fa_y_metadata);
+        let lp_fa_val = 10;
+        let lp_fa_to_burn =
+            primary_fungible_store::withdraw(&lp_owner, lp_metadata, lp_fa_val);
+
         let (x_out, y_out) = router::get_reserves_for_lp_coins<BTC, USDT, Uncorrelated>(
-            lp_coins_val,
+            lp_fa_val,
             fa_x_metadata,
             fa_y_metadata,
         );
         let (coin_x, coin_y) =
             router::remove_liquidity<BTC, USDT, Uncorrelated>(
-                lp_coins_to_burn,
+                lp_fa_to_burn,
                 x_out,
                 y_out * 2,
                 fa_x_metadata,
@@ -304,22 +301,26 @@ module liquidswap_v05::router_tests {
     fun test_remove_liq_with_wrong_metadata_ordering_should_fail() {
         let (_, lp_owner) = register_pool_with_liquidity(101, 10100);
 
-        let lp_coins_val = 10;
+        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"BTC");
+        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
 
-        let lp_coins_to_burn =
-            coin::withdraw<LP<BTC, USDT, Uncorrelated>>(&lp_owner, lp_coins_val);
+        let lp_metadata =
+            liquidity_pool::get_pool_lp_metadata<BTC, USDT, Uncorrelated>(fa_x_metadata, fa_y_metadata);
+        let lp_fa_val = 10;
+        let lp_fa_to_burn =
+            primary_fungible_store::withdraw(&lp_owner, lp_metadata, lp_fa_val);
 
         let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"BTC");
         let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
 
         let (x_out, y_out) = router::get_reserves_for_lp_coins<BTC, USDT, Uncorrelated>(
-            lp_coins_val,
+            lp_fa_val,
             fa_x_metadata,
             fa_y_metadata,
         );
         let (coin_x, coin_y) =
             router::remove_liquidity<BTC, USDT, Uncorrelated>(
-                lp_coins_to_burn,
+                lp_fa_to_burn,
                 x_out,
                 y_out,
                 fa_y_metadata,
@@ -1779,6 +1780,6 @@ module liquidswap_v05::router_tests {
         let lp_owner_addr = signer::address_of(&lp_owner);
         primary_fungible_store::deposit(lp_owner_addr, btc_out);
         primary_fungible_store::deposit(lp_owner_addr, usdt_out);
-        coin::deposit(lp_owner_addr, lp_out);
+        primary_fungible_store::deposit(lp_owner_addr, lp_out);
     }
 }

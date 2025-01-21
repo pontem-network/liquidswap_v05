@@ -3,14 +3,16 @@ module test_helpers::test_pool {
     use std::signer;
 
     use aptos_framework::account;
-    use aptos_framework::coin;
+    use aptos_framework::fungible_asset;
     use aptos_framework::fungible_asset::FungibleAsset;
     use aptos_framework::genesis;
-    use liquidswap_lp::lp_coin::LP;
+    use aptos_framework::primary_fungible_store;
 
     use liquidswap_v05::liquidity_pool;
     use liquidswap_v05::lp_account;
     use test_coin_admin::test_coins;
+
+    // todo: recheck funcs here
 
     public fun create_lp_owner(): signer {
         let pool_owner = account::create_account_for_test(@test_lp_owner);
@@ -54,12 +56,9 @@ module test_helpers::test_pool {
 
     public fun mint_liquidity<X, Y, Curve>(lp_owner: &signer, fa_x: FungibleAsset, fa_y: FungibleAsset): u64 {
         let lp_owner_addr = signer::address_of(lp_owner);
-        let lp_coins = liquidity_pool::mint<X, Y, Curve>(fa_x, fa_y);
-        let lp_coins_val = coin::value(&lp_coins);
-        if (!coin::is_account_registered<LP<X, Y, Curve>>(lp_owner_addr)) {
-            coin::register<LP<X, Y, Curve>>(lp_owner);
-        };
-        coin::deposit(lp_owner_addr, lp_coins);
-        lp_coins_val
+        let lp_fa = liquidity_pool::mint<X, Y, Curve>(fa_x, fa_y);
+        let lp_fa_val = fungible_asset::amount(&lp_fa);
+        primary_fungible_store::deposit(lp_owner_addr, lp_fa);
+        lp_fa_val
     }
 }

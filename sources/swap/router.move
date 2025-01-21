@@ -1,16 +1,14 @@
 /// Router v2 for Liquidity Pool, similar to Uniswap router.
 module liquidswap_v05::router {
-    use aptos_framework::coin::Coin;
     use aptos_framework::fungible_asset;
     use aptos_framework::fungible_asset::{Metadata, FungibleAsset};
     use aptos_framework::object::Object;
 
-    use liquidswap_v05::fa_helper::{Self, supply};
+    use liquidswap_v05::fa_helper;
     use liquidswap_v05::curves;
     use liquidswap_v05::math;
     use liquidswap_v05::stable_curve;
     use liquidswap_v05::liquidity_pool;
-    use liquidswap_lp::lp_coin::LP;
 
     // Errors codes.
 
@@ -60,7 +58,7 @@ module liquidswap_v05::router {
     /// * `min_fa_x_val` - minimum amount of FA X to add as liquidity.
     /// * `fa_y` - FA Y to add as liquidity.
     /// * `min_fa_y_val` - minimum amount of FA Y to add as liquidity.
-    /// Returns remainders of FA X and Y, and LP coins: `(FungibleAsset, FungibleAsset, Coin<LP<X, Y, Curve>>)`.
+    /// Returns remainders of FA X and Y, and LP FA: `(FungibleAsset, FungibleAsset, FungibleAsset)`.
     ///
     /// Note: X, Y generic coin parameters must be sorted.
     public fun add_liquidity<X, Y, Curve>(
@@ -68,7 +66,7 @@ module liquidswap_v05::router {
         min_fa_x_val: u64,
         fa_y: FungibleAsset,
         min_fa_y_val: u64,
-    ): (FungibleAsset, FungibleAsset, Coin<LP<X, Y, Curve>>) {
+    ): (FungibleAsset, FungibleAsset, FungibleAsset) {
         let x_metadata = fungible_asset::metadata_from_asset(&fa_x);
         let y_metadata = fungible_asset::metadata_from_asset(&fa_y);
 
@@ -97,8 +95,8 @@ module liquidswap_v05::router {
         (fa_x, fa_y, lp_coins)
     }
 
-    /// Burn liquidity coins `LP` and get FA's `X` and `Y` back.
-    /// * `lp_coins` - `LP` coins to burn.
+    /// Burn liquidity FA `LP` and get FA's `X` and `Y` back.
+    /// * `lp_fa` - `LP` FA to burn.
     /// * `min_x_out_val` - minimum amount of `X` coins must be out.
     /// * `min_y_out_val` - minimum amount of `Y` coins must be out.
     /// * `x_metadata` - metadata object of FungibleAsset X.
@@ -107,7 +105,7 @@ module liquidswap_v05::router {
     ///
     /// Note: X, Y generic coin parameteres should be sorted.
     public fun remove_liquidity<X, Y, Curve>(
-        lp_coins: Coin<LP<X, Y, Curve>>,
+        lp_fa: FungibleAsset,
         min_x_out_val: u64,
         min_y_out_val: u64,
         x_metadata: Object<Metadata>,
@@ -118,7 +116,7 @@ module liquidswap_v05::router {
         assert!(fa_helper::is_fa_sorted(x_metadata, y_metadata), ERR_WRONG_FA_ORDER);
 
         let (x_out, y_out) =
-            liquidity_pool::burn<X, Y, Curve>(lp_coins, x_metadata, y_metadata);
+            liquidity_pool::burn<X, Y, Curve>(lp_fa, x_metadata, y_metadata);
 
         assert!(
             fungible_asset::amount(&x_out) >= min_x_out_val,
@@ -414,7 +412,8 @@ module liquidswap_v05::router {
         y_metadata: Object<Metadata>
     ): (u64, u64) {
         let (x_reserve, y_reserve) = get_reserves_size<X, Y, Curve>(x_metadata, y_metadata);
-        let lp_coins_total = supply<LP<X, Y, Curve>>();
+
+        let lp_coins_total = liquidity_pool::get_pool_lp_supply<X, Y, Curve>(x_metadata, y_metadata);
 
         let x_to_return_val = math::mul_div_u128((lp_to_burn_val as u128), (x_reserve as u128), lp_coins_total);
         let y_to_return_val = math::mul_div_u128((lp_to_burn_val as u128), (y_reserve as u128), lp_coins_total);

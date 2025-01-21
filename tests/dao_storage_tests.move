@@ -4,11 +4,9 @@ module liquidswap_v05::dao_storage_tests {
     use std::string;
     use aptos_framework::account;
 
-    use aptos_framework::coin;
     use aptos_framework::fungible_asset;
     use aptos_framework::object;
     use aptos_framework::primary_fungible_store;
-    use liquidswap_lp::lp_coin::LP;
 
     use liquidswap_v05::curves::Uncorrelated;
     use liquidswap_v05::dao_storage::{Self, FungibleStoreSigner};
@@ -282,10 +280,9 @@ module liquidswap_v05::dao_storage_tests {
         let btc_fa = test_coins::mint_fa(&fa_admin, b"BTC", 100000);
         let usdt_fa = test_coins::mint_fa(&fa_admin, b"USDT", 100000);
 
-        let lp_coins =
+        let lp_fa =
             liquidity_pool::mint<BTC, USDT, Uncorrelated>(btc_fa, usdt_fa);
-        coin::register<LP<BTC, USDT, Uncorrelated>>(&lp_owner);
-        coin::deposit(signer::address_of(&lp_owner), lp_coins);
+        primary_fungible_store::deposit(signer::address_of(&lp_owner), lp_fa);
 
         let btc_fa_to_exchange = test_coins::mint_fa(&fa_admin, b"BTC", 1000);
         let (zero, usdt_coins) =

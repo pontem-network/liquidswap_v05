@@ -1,19 +1,18 @@
 /// Liquidswap liquidity pool module.
 /// Implements mint/burn liquidity, swap of FA's.
 module liquidswap_v05::liquidity_pool {
+    use std::option;
     use std::signer;
     use std::string;
 
     use aptos_std::event;
-    use aptos_framework::fungible_asset::{Self, FungibleAsset, Metadata};
+    use aptos_framework::fungible_asset::{Self, FungibleAsset, Metadata, MintRef, BurnRef};
     use aptos_framework::account::{Self, SignerCapability};
-    use aptos_framework::coin::{Self, Coin};
     use aptos_framework::object;
     use aptos_framework::object::Object;
     use aptos_framework::primary_fungible_store;
     use aptos_framework::timestamp;
 
-    use liquidswap_lp::lp_coin::LP;
     use uq64x64::uq64x64;
 
     use liquidswap_v05::fa_helper;
@@ -82,20 +81,21 @@ module liquidswap_v05::liquidity_pool {
 
     // Public functions.
 
-    // todo: recheck do we need #[resource_group_member(group = aptos_framework::object::ObjectGroup)] ?
+    // todo: recheck do we need #[resource_group_member(group = aptos_framework::object::ObjectGroup)]?
     // todo: is it possible to replenish pool balance directly and ruine some calculations?
 
     /// Liquidity pool with reserve metadatas.
     struct LiquidityPool<phantom X, phantom Y, phantom Curve> has key {
         // Signer capable of manage pool reserve FA stores.
         fa_signer_cap: SignerCapability,
+        // Metadata of LP FA's.
+        lp_metadata: Object<Metadata>,
 
         last_block_timestamp: u64,
         last_price_x_cumulative: u128,
         last_price_y_cumulative: u128,
-        lp_mint_cap: coin::MintCapability<LP<X, Y, Curve>>,
-        lp_burn_cap: coin::BurnCapability<LP<X, Y, Curve>>,
-        lp_coins_reserved: coin::Coin<LP<X, Y, Curve>>,
+        lp_mint_ref: MintRef,
+        lp_burn_ref: BurnRef,
         // Scales are pow(10, token_decimals).
         x_scale: u64,
         y_scale: u64,
@@ -149,16 +149,42 @@ module liquidswap_v05::liquidity_pool {
         let pool_cap = borrow_global<PoolAccountCapability>(@liquidswap_v05);
         let pool_account = account::create_signer_with_capability(&pool_cap.signer_cap);
 
-        let (lp_name, lp_symbol) = fa_helper::fa_generate_lp_name_and_symbol<Curve>(x_metadata, y_metadata);
-        let (lp_burn_cap, lp_freeze_cap, lp_mint_cap) =
-            coin::initialize<LP<X, Y, Curve>>(
-                &pool_account,
-                lp_name,
-                lp_symbol,
-                6,
-                true
-            );
-        coin::destroy_freeze_cap(lp_freeze_cap);
+        // todo: check LP obj created
+        // Creates a non-deletable object with a named address based on our LP seed.
+        let pool_obj_name =
+            string::bytes(&fa_helper::create_pool_obj_name<Curve>(x_metadata, y_metadata));
+        let lp_fa_obj_seed = string::utf8(*pool_obj_name);
+        string::append_utf8( &mut lp_fa_obj_seed, b"-LP");
+        let constructor_ref =
+            &object::create_named_object(&pool_account, *string::bytes(&lp_fa_obj_seed));
+        object::set_untransferable(constructor_ref);
+
+        // Create the FA's LP Metadata with name, symbol, icon, etc.
+        let (lp_name, lp_symbol) =
+             fa_helper::fa_generate_lp_name_and_symbol<Curve>(x_metadata, y_metadata);
+        primary_fungible_store::create_primary_store_enabled_fungible_asset(
+            constructor_ref,
+            option::none(), // todo: is it good?
+            lp_name,
+            lp_symbol,
+            6, /* decimals */
+            string::utf8(b""), /* icon uri */ // todo: is it good?
+            string::utf8(b""), /* project uri */ // todo: is it good?
+        );
+
+        let lp_mint_ref = fungible_asset::generate_mint_ref(constructor_ref);
+        let lp_burn_ref = fungible_asset::generate_burn_ref(constructor_ref);
+        let lp_metadata = fungible_asset::mint_ref_metadata(&lp_mint_ref);
+
+        // Create fungible stores for X, Y and LP FA's.
+        let (fa_res_acc, fa_sig_cap) =
+            account::create_resource_account(&pool_account,*pool_obj_name);
+        let fa_res_acc_addr = signer::address_of(&fa_res_acc);
+
+        primary_fungible_store::create_primary_store(fa_res_acc_addr, x_metadata);
+        primary_fungible_store::create_primary_store(fa_res_acc_addr, y_metadata);
+        // todo: check store in tests
+        primary_fungible_store::create_primary_store(fa_res_acc_addr, lp_metadata);
 
         let x_scale = 0;
         let y_scale = 0;
@@ -168,24 +194,14 @@ module liquidswap_v05::liquidity_pool {
             y_scale = math::pow_10(fungible_asset::decimals(y_metadata));
         };
 
-        // Create fungible stores for X and Y FA's.
-        let pool_obj_name =
-            string::bytes(&fa_helper::create_pool_obj_name<Curve>(x_metadata, y_metadata));
-        let (fa_res_acc, fa_sig_cap) =
-            account::create_resource_account(&pool_account,*pool_obj_name);
-        let fa_res_acc_addr = signer::address_of(&fa_res_acc);
-
-        primary_fungible_store::create_primary_store(fa_res_acc_addr, x_metadata);
-        primary_fungible_store::create_primary_store(fa_res_acc_addr, y_metadata);
-
         let pool = LiquidityPool<X, Y, Curve> {
             fa_signer_cap: fa_sig_cap,
+            lp_metadata,
             last_block_timestamp: 0,
             last_price_x_cumulative: 0,
             last_price_y_cumulative: 0,
-            lp_mint_cap,
-            lp_burn_cap,
-            lp_coins_reserved: coin::zero(),
+            lp_mint_ref,
+            lp_burn_ref,
             x_scale,
             y_scale,
             locked: false,
@@ -225,11 +241,11 @@ module liquidswap_v05::liquidity_pool {
         move_to(&pool_account, events_store);
     }
 
-    /// Mint new liquidity coins.
+    /// Mint new liquidity FA.
     /// * `fa_x` - FungibleAsset X to add to liquidity reserves.
     /// * `fa_y` - FungibleAsset Y to add to liquidity reserves.
-    /// Returns LP coins: `Coin<LP<X, Y, Curve>>`.
-    public fun mint<X, Y, Curve>(fa_x: FungibleAsset, fa_y: FungibleAsset): Coin<LP<X, Y, Curve>>
+    /// Returns LP FA: `FungibleAsset`.
+    public fun mint<X, Y, Curve>(fa_x: FungibleAsset, fa_y: FungibleAsset): FungibleAsset
     acquires LiquidityPool, PoolAccountCapability, EventsStore {
         assert_no_emergency();
 
@@ -239,13 +255,12 @@ module liquidswap_v05::liquidity_pool {
         assert!(fa_helper::is_fa_sorted(x_metadata, y_metadata), ERR_WRONG_PAIR_ORDERING);
         assert!(is_pool_exists<X, Y, Curve>(x_metadata, y_metadata), ERR_POOL_DOES_NOT_EXIST);
 
-        let lp_coins_total = fa_helper::supply<LP<X, Y, Curve>>();
-
         let pool_addr = get_pool_addr<X, Y, Curve>(x_metadata, y_metadata);
         let pool = borrow_global_mut<LiquidityPool<X, Y, Curve>>(pool_addr);
 
         assert_pool_unlocked<X, Y, Curve>(pool);
 
+        // todo: replace cap with @liquidswap_pool_account? try it later
         let fa_res_acc_addr =
             account::get_signer_capability_address(&pool.fa_signer_cap);
 
@@ -255,17 +270,21 @@ module liquidswap_v05::liquidity_pool {
         let x_provided_val = fungible_asset::amount(&fa_x);
         let y_provided_val = fungible_asset::amount(&fa_y);
 
-        let provided_liq = if (lp_coins_total == 0) {
+        let lp_fa_total = fa_helper::fa_supply(pool.lp_metadata);
+
+        let provided_liq = if (lp_fa_total == 0) {
             let initial_liq = math::sqrt(math::mul_to_u128(x_provided_val, y_provided_val));
             assert!(initial_liq > MINIMAL_LIQUIDITY, ERR_NOT_ENOUGH_INITIAL_LIQUIDITY);
 
-            let lp_reserved_coins = coin::mint<LP<X, Y, Curve>>(MINIMAL_LIQUIDITY, &pool.lp_mint_cap);
-            coin::merge(&mut pool.lp_coins_reserved, lp_reserved_coins);
+            // todo: check store in tests <=============
+            let lp_reserved_fa =
+                fungible_asset::mint(&pool.lp_mint_ref, MINIMAL_LIQUIDITY);
+            primary_fungible_store::deposit(fa_res_acc_addr, lp_reserved_fa);
 
             initial_liq - MINIMAL_LIQUIDITY
         } else {
-            let x_liq = math::mul_div_u128((x_provided_val as u128), lp_coins_total, (x_reserve_size as u128));
-            let y_liq = math::mul_div_u128((y_provided_val as u128), lp_coins_total, (y_reserve_size as u128));
+            let x_liq = math::mul_div_u128((x_provided_val as u128), lp_fa_total, (x_reserve_size as u128));
+            let y_liq = math::mul_div_u128((y_provided_val as u128), lp_fa_total, (y_reserve_size as u128));
             if (x_liq < y_liq) {
                 x_liq
             } else {
@@ -278,7 +297,7 @@ module liquidswap_v05::liquidity_pool {
         primary_fungible_store::deposit(fa_res_acc_addr, fa_x);
         primary_fungible_store::deposit(fa_res_acc_addr, fa_y);
 
-        let lp_coins = coin::mint<LP<X, Y, Curve>>(provided_liq, &pool.lp_mint_cap);
+        let lp_fa = fungible_asset::mint(&pool.lp_mint_ref, provided_liq);
 
         update_oracle<X, Y, Curve>(pool, x_reserve_size, y_reserve_size, x_metadata, y_metadata);
 
@@ -293,35 +312,34 @@ module liquidswap_v05::liquidity_pool {
                 y_metadata: object::object_address(&y_metadata),
             });
 
-        lp_coins
+        lp_fa
     }
 
-    /// Burn liquidity coins (LP) and get back X and Y FA's from reserves.
-    /// * `lp_coins` - LP coins to burn.
+    /// Burn liquidity FA (LP) and get back X and Y FA's from reserves.
+    /// * `lp_fa` - LP FA to burn.
     /// * `x_metadata` - metadata object of FungibleAsset X.
     /// * `y_metadata` - metadata object of FungibleAsset Y.
     /// Returns both X and Y FA's - `(FungibleAsset, FungibleAsset)`.
     public fun burn<X, Y, Curve>(
-        lp_coins: Coin<LP<X, Y, Curve>>,
+        lp_fa: FungibleAsset,
         x_metadata: Object<Metadata>,
         y_metadata: Object<Metadata>,
     ): (FungibleAsset, FungibleAsset)
     acquires LiquidityPool, PoolAccountCapability, EventsStore {
-        // todo: seems we have to check that LP's are attached to current pool.
-        // todo: after LP's rework add that ^ test.
+        // todo: IMPORTANT! seems we have to check that LP's are attached to current pool. We have to test it.
 
         assert!(fa_helper::is_fa_sorted(x_metadata, y_metadata), ERR_WRONG_PAIR_ORDERING);
         // todo: maybe store x and y FA's metadata in LP FA metadata so no need to provide metadata args when burn?
         assert!(is_pool_exists<X, Y, Curve>(x_metadata, y_metadata), ERR_POOL_DOES_NOT_EXIST);
 
-        let burned_lp_coins_val = coin::value(&lp_coins);
+        let burned_lp_fa_val = fungible_asset::amount(&lp_fa);
 
         let pool_addr = get_pool_addr<X, Y, Curve>(x_metadata, y_metadata);
         let pool = borrow_global_mut<LiquidityPool<X, Y, Curve>>(pool_addr);
 
         assert_pool_unlocked<X, Y, Curve>(pool);
 
-        let lp_coins_total = fa_helper::supply<LP<X, Y, Curve>>();
+        let lp_coins_total = fa_helper::fa_supply(pool.lp_metadata);
 
         let fa_res_acc =
             account::create_signer_with_capability(&pool.fa_signer_cap);
@@ -330,11 +348,11 @@ module liquidswap_v05::liquidity_pool {
         let x_reserve_val = primary_fungible_store::balance(fa_res_acc_addr, x_metadata);
         let y_reserve_val = primary_fungible_store::balance(fa_res_acc_addr, y_metadata);
 
-        // Compute x, y coin values for provided lp_coins value
+        // Compute x, y FA values for provided lp_fa value
         let x_to_return_val =
-            math::mul_div_u128((burned_lp_coins_val as u128), (x_reserve_val as u128), lp_coins_total);
+            math::mul_div_u128((burned_lp_fa_val as u128), (x_reserve_val as u128), lp_coins_total);
         let y_to_return_val =
-            math::mul_div_u128((burned_lp_coins_val as u128), (y_reserve_val as u128), lp_coins_total);
+            math::mul_div_u128((burned_lp_fa_val as u128), (y_reserve_val as u128), lp_coins_total);
         assert!(x_to_return_val > 0 && y_to_return_val > 0, ERR_INCORRECT_BURN_VALUES);
 
         // Withdraw from fungible stores of X and Y FA's.
@@ -342,7 +360,8 @@ module liquidswap_v05::liquidity_pool {
         let y_fa_to_return = primary_fungible_store::withdraw(&fa_res_acc, y_metadata, y_to_return_val);
 
         update_oracle<X, Y, Curve>(pool, x_reserve_val, y_reserve_val, x_metadata, y_metadata);
-        coin::burn(lp_coins, &pool.lp_burn_cap);
+
+        fungible_asset::burn(&pool.lp_burn_ref, lp_fa);
 
         let events_store = borrow_global_mut<EventsStore<Curve>>(@liquidswap_pool_account);
         event::emit_event(
@@ -350,7 +369,7 @@ module liquidswap_v05::liquidity_pool {
             LiquidityRemovedEvent<Curve> {
                 returned_x_val: x_to_return_val,
                 returned_y_val: y_to_return_val,
-                lp_tokens_burned: burned_lp_coins_val,
+                lp_tokens_burned: burned_lp_fa_val,
                 x_metadata: object::object_address(&x_metadata),
                 y_metadata: object::object_address(&y_metadata),
             });
@@ -971,6 +990,36 @@ module liquidswap_v05::liquidity_pool {
         object::create_object_address(&pool_acc_addr, *string::bytes(&pool_obj_name))
     }
 
+    #[view]
+    // todo: add test before and after liq add
+    /// Returns LP supply of given pool.
+    /// * `x_metadata` - metadata object of FungibleAsset X.
+    /// * `y_metadata` - metadata object of FungibleAsset Y.
+    public fun get_pool_lp_supply<X, Y, Curve>(
+        x_metadata: Object<Metadata>,
+        y_metadata: Object<Metadata>,
+    ): u128 acquires LiquidityPool, PoolAccountCapability {
+        let pool_obj_addr = get_pool_addr<X, Y, Curve>(x_metadata, y_metadata);
+        let pool = borrow_global<LiquidityPool<X, Y, Curve>>(pool_obj_addr);
+
+        fa_helper::fa_supply(pool.lp_metadata)
+    }
+
+    #[view]
+    // todo: add test
+    /// Returns LP Metadata object of given pool.
+    /// * `x_metadata` - metadata object of FungibleAsset X.
+    /// * `y_metadata` - metadata object of FungibleAsset Y.
+    public fun get_pool_lp_metadata<X, Y, Curve>(
+        x_metadata: Object<Metadata>,
+        y_metadata: Object<Metadata>,
+    ): Object<Metadata> acquires LiquidityPool, PoolAccountCapability {
+        let pool_obj_addr = get_pool_addr<X, Y, Curve>(x_metadata, y_metadata);
+        let pool = borrow_global<LiquidityPool<X, Y, Curve>>(pool_obj_addr);
+
+        pool.lp_metadata
+    }
+
     // Events
     struct EventsStore<phantom Curve> has key {
         pool_created_handle: event::EventHandle<PoolCreatedEvent<Curve>>,
@@ -1094,10 +1143,12 @@ module liquidswap_v05::liquidity_pool {
         y_metadata: Object<Metadata>,
     ): u64 acquires LiquidityPool, PoolAccountCapability {
         let pool_obj_addr = get_pool_addr<X, Y, curves::Uncorrelated>(x_metadata, y_metadata);
-        assert!(exists<LiquidityPool<X, Y, curves::Uncorrelated>>(pool_obj_addr), ERR_POOL_DOES_NOT_EXIST);
+        let pool = borrow_global_mut<LiquidityPool<X, Y, Curve>>(pool_obj_addr);
 
-        let pool =
-            borrow_global_mut<LiquidityPool<X, Y, curves::Uncorrelated>>(pool_obj_addr);
-        coin::value(&pool.lp_coins_reserved)
+        let fa_res_acc_addr =
+            account::get_signer_capability_address(&pool.fa_signer_cap);
+
+        let lp_metadata = get_pool_lp_metadata<X, Y, Curve>(x_metadata, y_metadata);
+        primary_fungible_store::balance(fa_res_acc_addr, lp_metadata)
     }
 }
