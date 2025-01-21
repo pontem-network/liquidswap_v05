@@ -14,12 +14,12 @@ module liquidswap_v05::scripts {
     /// * `x_metadata` - metadata object of FungibleAsset X.
     /// * `y_metadata` - metadata object of FungibleAsset Y.
     /// Note: X, Y generic coin parameters must be sorted.
-    public entry fun register_pool<X, Y, Curve>(
+    public entry fun register_pool<Curve>(
         account: &signer,
         metadata_x: Object<Metadata>,
         metadata_y: Object<Metadata>,
     ) {
-        router::register_pool<X, Y, Curve>(account, metadata_x, metadata_y);
+        router::register_pool<Curve>(account, metadata_x, metadata_y);
     }
 
     /// Register a new liquidity pool `X`/`Y` and immediately add liquidity.
@@ -32,7 +32,7 @@ module liquidswap_v05::scripts {
     /// * `y_metadata` - metadata object of FungibleAsset Y.
     ///
     /// Note: X, Y generic coin parameters must be sorted.
-    public entry fun register_pool_and_add_liquidity<X, Y, Curve>(
+    public entry fun register_pool_and_add_liquidity<Curve>(
         account: &signer,
         fa_x_val: u64,
         fa_x_val_min: u64,
@@ -41,8 +41,8 @@ module liquidswap_v05::scripts {
         x_metadata: Object<Metadata>,
         y_metadata: Object<Metadata>,
     ) {
-        router::register_pool<X, Y, Curve>(account, x_metadata, y_metadata);
-        add_liquidity<X, Y, Curve>(
+        router::register_pool<Curve>(account, x_metadata, y_metadata);
+        add_liquidity<Curve>(
             account,
             fa_x_val,
             fa_x_val_min,
@@ -63,7 +63,7 @@ module liquidswap_v05::scripts {
     /// * `y_metadata` - metadata object of FungibleAsset Y.
     ///
     /// Note: X, Y generic coin parameters must be sorted.
-    public entry fun add_liquidity<X, Y, Curve>(
+    public entry fun add_liquidity<Curve>(
         account: &signer,
         fa_x_val: u64,
         fa_x_val_min: u64,
@@ -76,7 +76,7 @@ module liquidswap_v05::scripts {
         let fa_y = primary_fungible_store::withdraw(account, y_metadata, fa_y_val);
 
         let (fa_x_remainder, fa_y_remainder, lp_fa) =
-            router::add_liquidity<X, Y, Curve>(
+            router::add_liquidity<Curve>(
                 fa_x,
                 fa_x_val_min,
                 fa_y,
@@ -98,7 +98,7 @@ module liquidswap_v05::scripts {
     /// * `y_metadata` - metadata object of FungibleAsset Y.
     ///
     /// Note: X, Y generic coin parameters must be sorted.
-    public entry fun remove_liquidity<X, Y, Curve>(
+    public entry fun remove_liquidity<Curve>(
         account: &signer,
         lp_val: u64,
         min_x_out_val: u64,
@@ -106,11 +106,11 @@ module liquidswap_v05::scripts {
         x_metadata: Object<Metadata>,
         y_metadata: Object<Metadata>,
     ) {
-        let lp_metadata = liquidity_pool::get_pool_lp_metadata<X, Y, Curve>(x_metadata, y_metadata);
+        let lp_metadata = liquidity_pool::get_pool_lp_metadata<Curve>(x_metadata, y_metadata);
         let lp_fa = primary_fungible_store::withdraw(account, lp_metadata, lp_val);
 
         let (fa_x, fa_y) =
-            router::remove_liquidity<X, Y, Curve>(
+            router::remove_liquidity<Curve>(
                 lp_fa,
                 min_x_out_val,
                 min_y_out_val,
@@ -129,7 +129,7 @@ module liquidswap_v05::scripts {
     /// * `fa_out_min_val` - minimum expected amount of FA `Y` to get.
     /// * `x_metadata` - metadata object of FungibleAsset X.
     /// * `y_metadata` - metadata object of FungibleAsset Y.
-    public entry fun swap<X, Y, Curve>(
+    public entry fun swap<Curve>(
         account: &signer,
         fa_val: u64,
         fa_out_min_val: u64,
@@ -139,7 +139,7 @@ module liquidswap_v05::scripts {
         let fa_x = primary_fungible_store::withdraw(account, x_metadata, fa_val);
 
         let fa_y =
-            router::swap_exact_coin_for_coin<X, Y, Curve>(
+            router::swap_exact_coin_for_coin<Curve>(
                 fa_x,
                 fa_out_min_val,
                 y_metadata,
@@ -155,7 +155,7 @@ module liquidswap_v05::scripts {
     /// * `fa_out` - how much of FA `Y` should be returned.
     /// * `x_metadata` - metadata object of FungibleAsset X.
     /// * `y_metadata` - metadata object of FungibleAsset Y.
-    public entry fun swap_into<X, Y, Curve>(
+    public entry fun swap_into<Curve>(
         account: &signer,
         fa_val_max: u64,
         fa_out: u64,
@@ -165,7 +165,7 @@ module liquidswap_v05::scripts {
         let fa_x = primary_fungible_store::withdraw(account, x_metadata, fa_val_max);
 
         let (fa_x, fa_y) =
-            router::swap_coin_for_exact_coin<X, Y, Curve>(
+            router::swap_coin_for_exact_coin<Curve>(
                 fa_x,
                 fa_out,
                 y_metadata,
@@ -183,7 +183,7 @@ module liquidswap_v05::scripts {
     /// * `fa_out` - how much of FA `Y` should be returned.
     /// * `x_metadata` - metadata object of FungibleAsset X.
     /// * `y_metadata` - metadata object of FungibleAsset Y.
-    public entry fun swap_unchecked<X, Y, Curve>(
+    public entry fun swap_unchecked<Curve>(
         account: &signer,
         fa_in: u64,
         fa_out: u64,
@@ -193,7 +193,7 @@ module liquidswap_v05::scripts {
         let fa_x = primary_fungible_store::withdraw(account, x_metadata, fa_in);
 
         let fa_y =
-            router::swap_coin_for_coin_unchecked<X, Y, Curve>(
+            router::swap_coin_for_coin_unchecked<Curve>(
                 fa_x,
                 fa_out,
                 y_metadata,

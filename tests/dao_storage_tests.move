@@ -271,7 +271,7 @@ module liquidswap_v05::dao_storage_tests {
         let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
 
         // 0.3% fee
-        router::register_pool<BTC, USDT, Uncorrelated>(
+        router::register_pool<Uncorrelated>(
             &lp_owner,
             fa_x_metadata,
             fa_y_metadata,
@@ -281,18 +281,18 @@ module liquidswap_v05::dao_storage_tests {
         let usdt_fa = test_coins::mint_fa(&fa_admin, b"USDT", 100000);
 
         let lp_fa =
-            liquidity_pool::mint<BTC, USDT, Uncorrelated>(btc_fa, usdt_fa);
+            liquidity_pool::mint<Uncorrelated>(btc_fa, usdt_fa);
         primary_fungible_store::deposit(signer::address_of(&lp_owner), lp_fa);
 
         let btc_fa_to_exchange = test_coins::mint_fa(&fa_admin, b"BTC", 1000);
         let (zero, usdt_coins) =
-            liquidity_pool::swap<BTC, USDT, Uncorrelated>(
+            liquidity_pool::swap<Uncorrelated>(
                 btc_fa_to_exchange, 0,
                 fungible_asset::zero(fa_y_metadata), 960
             );
 
         let (x_res, y_res) =
-            liquidity_pool::get_reserves_size<BTC, USDT, Uncorrelated>(fa_x_metadata, fa_y_metadata);
+            liquidity_pool::get_reserves_size<Uncorrelated>(fa_x_metadata, fa_y_metadata);
         assert!(x_res == 100999, 1);
         assert!(y_res == 99040, 2);
 

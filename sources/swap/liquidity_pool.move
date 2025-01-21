@@ -85,7 +85,7 @@ module liquidswap_v05::liquidity_pool {
     // todo: is it possible to replenish pool balance directly and ruine some calculations?
 
     /// Liquidity pool with reserve metadatas.
-    struct LiquidityPool<phantom X, phantom Y, phantom Curve> has key {
+    struct LiquidityPool<phantom Curve> has key {
         // Signer capable of manage pool reserve FA stores.
         fa_signer_cap: SignerCapability,
         // Metadata of LP FA's.
@@ -135,7 +135,7 @@ module liquidswap_v05::liquidity_pool {
     /// * `acc` - pool creator signer.
     /// * `x_metadata` - metadata object of FungibleAsset X.
     /// * `y_metadata` - metadata object of FungibleAsset Y.
-    public fun register<X, Y, Curve>(
+    public fun register<Curve>(
         acc: &signer,
         x_metadata: Object<Metadata>,
         y_metadata: Object<Metadata>,
@@ -144,7 +144,7 @@ module liquidswap_v05::liquidity_pool {
         assert!(fa_helper::is_fa_sorted(x_metadata, y_metadata), ERR_WRONG_PAIR_ORDERING);
 
         curves::assert_valid_curve<Curve>();
-        assert!(!is_pool_exists<X, Y, Curve>(x_metadata, y_metadata), ERR_POOL_EXISTS_FOR_PAIR);
+        assert!(!is_pool_exists<Curve>(x_metadata, y_metadata), ERR_POOL_EXISTS_FOR_PAIR);
 
         let pool_cap = borrow_global<PoolAccountCapability>(@liquidswap_v05);
         let pool_account = account::create_signer_with_capability(&pool_cap.signer_cap);
@@ -194,7 +194,7 @@ module liquidswap_v05::liquidity_pool {
             y_scale = math::pow_10(fungible_asset::decimals(y_metadata));
         };
 
-        let pool = LiquidityPool<X, Y, Curve> {
+        let pool = LiquidityPool<Curve> {
             fa_signer_cap: fa_sig_cap,
             lp_metadata,
             last_block_timestamp: 0,
@@ -245,7 +245,7 @@ module liquidswap_v05::liquidity_pool {
     /// * `fa_x` - FungibleAsset X to add to liquidity reserves.
     /// * `fa_y` - FungibleAsset Y to add to liquidity reserves.
     /// Returns LP FA: `FungibleAsset`.
-    public fun mint<X, Y, Curve>(fa_x: FungibleAsset, fa_y: FungibleAsset): FungibleAsset
+    public fun mint<Curve>(fa_x: FungibleAsset, fa_y: FungibleAsset): FungibleAsset
     acquires LiquidityPool, PoolAccountCapability, EventsStore {
         assert_no_emergency();
 
@@ -253,12 +253,12 @@ module liquidswap_v05::liquidity_pool {
         let y_metadata = fungible_asset::metadata_from_asset(&fa_y);
 
         assert!(fa_helper::is_fa_sorted(x_metadata, y_metadata), ERR_WRONG_PAIR_ORDERING);
-        assert!(is_pool_exists<X, Y, Curve>(x_metadata, y_metadata), ERR_POOL_DOES_NOT_EXIST);
+        assert!(is_pool_exists<Curve>(x_metadata, y_metadata), ERR_POOL_DOES_NOT_EXIST);
 
-        let pool_addr = get_pool_addr<X, Y, Curve>(x_metadata, y_metadata);
-        let pool = borrow_global_mut<LiquidityPool<X, Y, Curve>>(pool_addr);
+        let pool_addr = get_pool_addr<Curve>(x_metadata, y_metadata);
+        let pool = borrow_global_mut<LiquidityPool<Curve>>(pool_addr);
 
-        assert_pool_unlocked<X, Y, Curve>(pool);
+        assert_pool_unlocked<Curve>(pool);
 
         // todo: replace cap with @liquidswap_pool_account? try it later
         let fa_res_acc_addr =
@@ -299,7 +299,7 @@ module liquidswap_v05::liquidity_pool {
 
         let lp_fa = fungible_asset::mint(&pool.lp_mint_ref, provided_liq);
 
-        update_oracle<X, Y, Curve>(pool, x_reserve_size, y_reserve_size, x_metadata, y_metadata);
+        update_oracle<Curve>(pool, x_reserve_size, y_reserve_size, x_metadata, y_metadata);
 
         let events_store = borrow_global_mut<EventsStore<Curve>>(@liquidswap_pool_account);
         event::emit_event(
@@ -320,7 +320,7 @@ module liquidswap_v05::liquidity_pool {
     /// * `x_metadata` - metadata object of FungibleAsset X.
     /// * `y_metadata` - metadata object of FungibleAsset Y.
     /// Returns both X and Y FA's - `(FungibleAsset, FungibleAsset)`.
-    public fun burn<X, Y, Curve>(
+    public fun burn<Curve>(
         lp_fa: FungibleAsset,
         x_metadata: Object<Metadata>,
         y_metadata: Object<Metadata>,
@@ -330,14 +330,14 @@ module liquidswap_v05::liquidity_pool {
 
         assert!(fa_helper::is_fa_sorted(x_metadata, y_metadata), ERR_WRONG_PAIR_ORDERING);
         // todo: maybe store x and y FA's metadata in LP FA metadata so no need to provide metadata args when burn?
-        assert!(is_pool_exists<X, Y, Curve>(x_metadata, y_metadata), ERR_POOL_DOES_NOT_EXIST);
+        assert!(is_pool_exists<Curve>(x_metadata, y_metadata), ERR_POOL_DOES_NOT_EXIST);
 
         let burned_lp_fa_val = fungible_asset::amount(&lp_fa);
 
-        let pool_addr = get_pool_addr<X, Y, Curve>(x_metadata, y_metadata);
-        let pool = borrow_global_mut<LiquidityPool<X, Y, Curve>>(pool_addr);
+        let pool_addr = get_pool_addr<Curve>(x_metadata, y_metadata);
+        let pool = borrow_global_mut<LiquidityPool<Curve>>(pool_addr);
 
-        assert_pool_unlocked<X, Y, Curve>(pool);
+        assert_pool_unlocked<Curve>(pool);
 
         let lp_coins_total = fa_helper::fa_supply(pool.lp_metadata);
 
@@ -359,7 +359,7 @@ module liquidswap_v05::liquidity_pool {
         let x_fa_to_return = primary_fungible_store::withdraw(&fa_res_acc, x_metadata, x_to_return_val);
         let y_fa_to_return = primary_fungible_store::withdraw(&fa_res_acc, y_metadata, y_to_return_val);
 
-        update_oracle<X, Y, Curve>(pool, x_reserve_val, y_reserve_val, x_metadata, y_metadata);
+        update_oracle<Curve>(pool, x_reserve_val, y_reserve_val, x_metadata, y_metadata);
 
         fungible_asset::burn(&pool.lp_burn_ref, lp_fa);
 
@@ -385,7 +385,7 @@ module liquidswap_v05::liquidity_pool {
     /// * `y_in` - Y FA to swap.
     /// * `y_out` - expected amount of Y FA to get out.
     /// Returns both exchanged X and Y FA's: `(FungibleAsset, FungibleAsset)`.
-    public fun swap<X, Y, Curve>(
+    public fun swap<Curve>(
         x_in: FungibleAsset,
         x_out: u64,
         y_in: FungibleAsset,
@@ -397,12 +397,12 @@ module liquidswap_v05::liquidity_pool {
         let y_metadata = fungible_asset::metadata_from_asset(&y_in);
 
         assert!(fa_helper::is_fa_sorted(x_metadata, y_metadata), ERR_WRONG_PAIR_ORDERING);
-        assert!(is_pool_exists<X, Y, Curve>(x_metadata, y_metadata), ERR_POOL_DOES_NOT_EXIST);
+        assert!(is_pool_exists<Curve>(x_metadata, y_metadata), ERR_POOL_DOES_NOT_EXIST);
 
-        let pool_addr = get_pool_addr<X, Y, Curve>(x_metadata, y_metadata);
-        let pool = borrow_global_mut<LiquidityPool<X, Y, Curve>>(pool_addr);
+        let pool_addr = get_pool_addr<Curve>(x_metadata, y_metadata);
+        let pool = borrow_global_mut<LiquidityPool<Curve>>(pool_addr);
 
-        assert_pool_unlocked<X, Y, Curve>(pool);
+        assert_pool_unlocked<Curve>(pool);
 
         let x_in_val = fungible_asset::amount(&x_in);
         let y_in_val = fungible_asset::amount(&y_in);
@@ -446,7 +446,7 @@ module liquidswap_v05::liquidity_pool {
 
         split_fee_to_dao(pool, &fa_res_acc, x_in_val, y_in_val, x_metadata, y_metadata);
 
-        update_oracle<X, Y, Curve>(pool, x_reserve_size, y_reserve_size, x_metadata, y_metadata);
+        update_oracle<Curve>(pool, x_reserve_size, y_reserve_size, x_metadata, y_metadata);
 
         let events_store = borrow_global_mut<EventsStore<Curve>>(@liquidswap_pool_account);
         event::emit_event(
@@ -472,7 +472,7 @@ module liquidswap_v05::liquidity_pool {
     /// * `x_metadata` - metadata object of FungibleAsset X.
     /// * `y_metadata` - metadata object of FungibleAsset Y.
     /// Returns both loaned X and Y FA's: `(FungibleAsset, FungibleAsset, Flashloan<Curve>)`.
-    public fun flashloan<X, Y, Curve>(
+    public fun flashloan<Curve>(
         x_loan: u64,
         y_loan: u64,
         x_metadata: Object<Metadata>,
@@ -482,12 +482,12 @@ module liquidswap_v05::liquidity_pool {
         assert_no_emergency();
 
         assert!(fa_helper::is_fa_sorted(x_metadata, y_metadata), ERR_WRONG_PAIR_ORDERING);
-        assert!(is_pool_exists<X, Y, Curve>(x_metadata, y_metadata), ERR_POOL_DOES_NOT_EXIST);
+        assert!(is_pool_exists<Curve>(x_metadata, y_metadata), ERR_POOL_DOES_NOT_EXIST);
 
-        let pool_addr = get_pool_addr<X, Y, Curve>(x_metadata, y_metadata);
-        let pool = borrow_global_mut<LiquidityPool<X, Y, Curve>>(pool_addr);
+        let pool_addr = get_pool_addr<Curve>(x_metadata, y_metadata);
+        let pool = borrow_global_mut<LiquidityPool<Curve>>(pool_addr);
 
-        assert_pool_unlocked<X, Y, Curve>(pool);
+        assert_pool_unlocked<Curve>(pool);
         assert!(x_loan > 0 || y_loan > 0, ERR_EMPTY_FA_LOAN);
 
         let fa_res_acc =
@@ -516,7 +516,7 @@ module liquidswap_v05::liquidity_pool {
     /// * `x_in` - X FA to pay.
     /// * `y_in` - Y FA to pay.
     /// * `loan` - data about flashloan.
-    public fun pay_flashloan<X, Y, Curve>(
+    public fun pay_flashloan<Curve>(
         x_in: FungibleAsset,
         y_in: FungibleAsset,
         loan: Flashloan<Curve>
@@ -527,10 +527,10 @@ module liquidswap_v05::liquidity_pool {
         let y_metadata = fungible_asset::metadata_from_asset(&y_in);
 
         assert!(fa_helper::is_fa_sorted(x_metadata, y_metadata), ERR_WRONG_PAIR_ORDERING);
-        assert!(is_pool_exists<X, Y, Curve>(x_metadata, y_metadata), ERR_POOL_DOES_NOT_EXIST);
+        assert!(is_pool_exists<Curve>(x_metadata, y_metadata), ERR_POOL_DOES_NOT_EXIST);
 
-        let pool_addr = get_pool_addr<X, Y, Curve>(x_metadata, y_metadata);
-        let pool = borrow_global_mut<LiquidityPool<X, Y, Curve>>(pool_addr);
+        let pool_addr = get_pool_addr<Curve>(x_metadata, y_metadata);
+        let pool = borrow_global_mut<LiquidityPool<Curve>>(pool_addr);
 
         let Flashloan { x_loan, y_loan, attached_pool_obj_addr } = loan;
 
@@ -639,8 +639,8 @@ module liquidswap_v05::liquidity_pool {
     /// * `y_in_val` - how much Y FA was deposited to pool.
     /// * `x_metadata` - metadata object of FungibleAsset X.
     /// * `y_metadata` - metadata object of FungibleAsset Y.
-    fun split_fee_to_dao<X, Y, Curve>(
-        pool: &mut LiquidityPool<X, Y, Curve>,
+    fun split_fee_to_dao<Curve>(
+        pool: &mut LiquidityPool<Curve>,
         fa_res_acc: &signer,
         x_in_val: u64,
         y_in_val: u64,
@@ -705,8 +705,8 @@ module liquidswap_v05::liquidity_pool {
     /// * `y_reserve` - FA Y reserves.
     /// * `x_metadata` - metadata object of FungibleAsset X.
     /// * `y_metadata` - metadata object of FungibleAsset Y.
-    fun update_oracle<X, Y, Curve>(
-        pool: &mut LiquidityPool<X, Y, Curve>,
+    fun update_oracle<Curve>(
+        pool: &mut LiquidityPool<Curve>,
         x_reserve: u64,
         y_reserve: u64,
         x_metadata: Object<Metadata>,
@@ -741,7 +741,7 @@ module liquidswap_v05::liquidity_pool {
 
     /// Aborts if pool is locked.
     /// * `pool` - pool to extract `locked` state.
-    fun assert_pool_unlocked<X, Y, Curve>(pool: &LiquidityPool<X, Y, Curve>) {
+    fun assert_pool_unlocked<Curve>(pool: &LiquidityPool<Curve>) {
         assert!(pool.locked == false, ERR_POOL_IS_LOCKED);
     }
 
@@ -750,16 +750,16 @@ module liquidswap_v05::liquidity_pool {
     /// Check if pool is locked.
     /// * `x_metadata` - metadata object of FungibleAsset X.
     /// * `y_metadata` - metadata object of FungibleAsset Y.
-    public fun is_pool_locked<X, Y, Curve>(
+    public fun is_pool_locked<Curve>(
         x_metadata: Object<Metadata>,
         y_metadata: Object<Metadata>,
     ): bool acquires LiquidityPool, PoolAccountCapability {
         assert!(fa_helper::is_fa_sorted(x_metadata, y_metadata), ERR_WRONG_PAIR_ORDERING);
 
-        let pool_obj_addr = get_pool_addr<X, Y, Curve>(x_metadata, y_metadata);
-        assert!(object::object_exists<LiquidityPool<X, Y, Curve>>(pool_obj_addr), ERR_POOL_DOES_NOT_EXIST);
+        let pool_obj_addr = get_pool_addr<Curve>(x_metadata, y_metadata);
+        assert!(object::object_exists<LiquidityPool<Curve>>(pool_obj_addr), ERR_POOL_DOES_NOT_EXIST);
 
-        let pool = borrow_global<LiquidityPool<X, Y, Curve>>(pool_obj_addr);
+        let pool = borrow_global<LiquidityPool<Curve>>(pool_obj_addr);
         pool.locked
     }
 
@@ -767,17 +767,17 @@ module liquidswap_v05::liquidity_pool {
     /// * `x_metadata` - metadata object of FungibleAsset X.
     /// * `y_metadata` - metadata object of FungibleAsset Y.
     /// Returns both (X, Y) reserves.
-    public fun get_reserves_size<X, Y, Curve>(
+    public fun get_reserves_size<Curve>(
         x_metadata: Object<Metadata>,
         y_metadata: Object<Metadata>,
     ): (u64, u64) acquires LiquidityPool, PoolAccountCapability {
         assert_no_emergency();
         assert!(fa_helper::is_fa_sorted(x_metadata, y_metadata), ERR_WRONG_PAIR_ORDERING);
 
-        let pool_obj_addr = get_pool_addr<X, Y, Curve>(x_metadata, y_metadata);
-        assert!(object::object_exists<LiquidityPool<X, Y, Curve>>(pool_obj_addr), ERR_POOL_DOES_NOT_EXIST);
+        let pool_obj_addr = get_pool_addr<Curve>(x_metadata, y_metadata);
+        assert!(object::object_exists<LiquidityPool<Curve>>(pool_obj_addr), ERR_POOL_DOES_NOT_EXIST);
 
-        let liquidity_pool = borrow_global<LiquidityPool<X, Y, Curve>>(pool_obj_addr);
+        let liquidity_pool = borrow_global<LiquidityPool<Curve>>(pool_obj_addr);
 
         assert_pool_unlocked(liquidity_pool);
 
@@ -796,7 +796,7 @@ module liquidswap_v05::liquidity_pool {
     /// * `x_metadata` - metadata object of FungibleAsset X.
     /// * `y_metadata` - metadata object of FungibleAsset Y.
     /// Returns (X price, Y price, block_timestamp).
-    public fun get_cumulative_prices<X, Y, Curve>(
+    public fun get_cumulative_prices<Curve>(
         x_metadata: Object<Metadata>,
         y_metadata: Object<Metadata>,
     ): (u128, u128, u64)
@@ -804,12 +804,12 @@ module liquidswap_v05::liquidity_pool {
         assert_no_emergency();
         assert!(fa_helper::is_fa_sorted(x_metadata, y_metadata), ERR_WRONG_PAIR_ORDERING);
 
-        let pool_obj_addr = get_pool_addr<X, Y, Curve>(x_metadata, y_metadata);
-        assert!(exists<LiquidityPool<X, Y, Curve>>(pool_obj_addr), ERR_POOL_DOES_NOT_EXIST);
+        let pool_obj_addr = get_pool_addr<Curve>(x_metadata, y_metadata);
+        assert!(exists<LiquidityPool<Curve>>(pool_obj_addr), ERR_POOL_DOES_NOT_EXIST);
 
-        let liquidity_pool = borrow_global<LiquidityPool<X, Y, Curve>>(pool_obj_addr);
+        let liquidity_pool = borrow_global<LiquidityPool<Curve>>(pool_obj_addr);
 
-        assert_pool_unlocked<X, Y, Curve>(liquidity_pool);
+        assert_pool_unlocked<Curve>(liquidity_pool);
 
         let last_price_x_cumulative = *&liquidity_pool.last_price_x_cumulative;
         let last_price_y_cumulative = *&liquidity_pool.last_price_y_cumulative;
@@ -822,57 +822,57 @@ module liquidswap_v05::liquidity_pool {
     /// * `x_metadata` - metadata object of FungibleAsset X.
     /// * `y_metadata` - metadata object of FungibleAsset Y.
     /// For uncorrelated curve would return just zeros.
-    public fun get_decimals_scales<X, Y, Curve>(
+    public fun get_decimals_scales<Curve>(
         x_metadata: Object<Metadata>,
         y_metadata: Object<Metadata>,
     ): (u64, u64) acquires LiquidityPool, PoolAccountCapability {
         assert!(fa_helper::is_fa_sorted(x_metadata, y_metadata), ERR_WRONG_PAIR_ORDERING);
 
-        let pool_obj_addr = get_pool_addr<X, Y, Curve>(x_metadata, y_metadata);
-        assert!(exists<LiquidityPool<X, Y, Curve>>(pool_obj_addr), ERR_POOL_DOES_NOT_EXIST);
+        let pool_obj_addr = get_pool_addr<Curve>(x_metadata, y_metadata);
+        assert!(exists<LiquidityPool<Curve>>(pool_obj_addr), ERR_POOL_DOES_NOT_EXIST);
 
-        let pool = borrow_global<LiquidityPool<X, Y, Curve>>(pool_obj_addr);
+        let pool = borrow_global<LiquidityPool<Curve>>(pool_obj_addr);
         (pool.x_scale, pool.y_scale)
     }
 
     /// Check if liquidity pool exists.
     /// * `x_metadata` - metadata object of FungibleAsset X.
     /// * `y_metadata` - metadata object of FungibleAsset Y.
-    public fun is_pool_exists<X, Y, Curve>(
+    public fun is_pool_exists<Curve>(
         x_metadata: Object<Metadata>,
         y_metadata: Object<Metadata>,
     ): bool acquires PoolAccountCapability {
         assert!(fa_helper::is_fa_sorted(x_metadata, y_metadata), ERR_WRONG_PAIR_ORDERING);
 
-        let pool_obj_addr = get_pool_addr<X, Y, Curve>(x_metadata, y_metadata);
+        let pool_obj_addr = get_pool_addr<Curve>(x_metadata, y_metadata);
 
-        object::object_exists<LiquidityPool<X, Y, Curve>>(pool_obj_addr)
+        object::object_exists<LiquidityPool<Curve>>(pool_obj_addr)
     }
 
     /// Get fee for specific pool together with denominator (numerator, denominator).
     /// * `x_metadata` - metadata object of FungibleAsset X.
     /// * `y_metadata` - metadata object of FungibleAsset Y.
-    public fun get_fees_config<X, Y, Curve>(
+    public fun get_fees_config<Curve>(
         x_metadata: Object<Metadata>,
         y_metadata: Object<Metadata>,
     ): (u64, u64) acquires LiquidityPool, PoolAccountCapability {
-        (get_fee<X, Y, Curve>(x_metadata, y_metadata), FEE_SCALE)
+        (get_fee<Curve>(x_metadata, y_metadata), FEE_SCALE)
     }
 
     /// Get fee for specific pool.
     /// * `x_metadata` - metadata object of FungibleAsset X.
     /// * `y_metadata` - metadata object of FungibleAsset Y.
-    public fun get_fee<X, Y, Curve>(
+    public fun get_fee<Curve>(
         x_metadata: Object<Metadata>,
         y_metadata: Object<Metadata>,
     ): u64 acquires LiquidityPool, PoolAccountCapability {
         assert!(fa_helper::is_fa_sorted(x_metadata, y_metadata), ERR_WRONG_PAIR_ORDERING);
         assert!(exists<PoolAccountCapability>(@liquidswap_v05), ERR_POOL_DOES_NOT_EXIST);
 
-        let pool_obj_addr = get_pool_addr<X, Y, Curve>(x_metadata, y_metadata);
-        assert!(object::object_exists<LiquidityPool<X, Y, Curve>>(pool_obj_addr), ERR_POOL_DOES_NOT_EXIST);
+        let pool_obj_addr = get_pool_addr<Curve>(x_metadata, y_metadata);
+        assert!(object::object_exists<LiquidityPool<Curve>>(pool_obj_addr), ERR_POOL_DOES_NOT_EXIST);
 
-        let pool = borrow_global<LiquidityPool<X, Y, Curve>>(pool_obj_addr);
+        let pool = borrow_global<LiquidityPool<Curve>>(pool_obj_addr);
         pool.fee
     }
 
@@ -881,7 +881,7 @@ module liquidswap_v05::liquidity_pool {
     /// * `fee` - new fee to set.
     /// * `x_metadata` - metadata object of FungibleAsset X.
     /// * `y_metadata` - metadata object of FungibleAsset Y.
-    public entry fun set_fee<X, Y, Curve>(
+    public entry fun set_fee<Curve>(
         fee_admin: &signer,
         fee: u64,
         x_metadata: Object<Metadata>,
@@ -890,11 +890,11 @@ module liquidswap_v05::liquidity_pool {
         assert!(fa_helper::is_fa_sorted(x_metadata, y_metadata), ERR_WRONG_PAIR_ORDERING);
         assert!(exists<PoolAccountCapability>(@liquidswap_v05), ERR_POOL_DOES_NOT_EXIST);
 
-        let pool_obj_addr = get_pool_addr<X, Y, Curve>(x_metadata, y_metadata);
-        assert!(object::object_exists<LiquidityPool<X, Y, Curve>>(pool_obj_addr), ERR_POOL_DOES_NOT_EXIST);
+        let pool_obj_addr = get_pool_addr<Curve>(x_metadata, y_metadata);
+        assert!(object::object_exists<LiquidityPool<Curve>>(pool_obj_addr), ERR_POOL_DOES_NOT_EXIST);
 
-        let pool = borrow_global_mut<LiquidityPool<X, Y, Curve>>(pool_obj_addr);
-        assert_pool_unlocked<X, Y, Curve>(pool);
+        let pool = borrow_global_mut<LiquidityPool<Curve>>(pool_obj_addr);
+        assert_pool_unlocked<Curve>(pool);
 
         assert!(signer::address_of(fee_admin) == global_config::get_fee_admin(), ERR_NOT_ADMIN);
         global_config::assert_valid_fee(fee);
@@ -915,27 +915,27 @@ module liquidswap_v05::liquidity_pool {
     /// Get DAO fee for specific pool together with denominator (numerator, denominator).
     /// * `x_metadata` - metadata object of FungibleAsset X.
     /// * `y_metadata` - metadata object of FungibleAsset Y.
-    public fun get_dao_fees_config<X, Y, Curve>(
+    public fun get_dao_fees_config<Curve>(
         x_metadata: Object<Metadata>,
         y_metadata: Object<Metadata>,
     ): (u64, u64) acquires LiquidityPool, PoolAccountCapability {
-        (get_dao_fee<X, Y, Curve>(x_metadata, y_metadata), DAO_FEE_SCALE)
+        (get_dao_fee<Curve>(x_metadata, y_metadata), DAO_FEE_SCALE)
     }
 
     /// Get DAO fee for specific pool.
     /// * `x_metadata` - metadata object of FungibleAsset X.
     /// * `y_metadata` - metadata object of FungibleAsset Y.
-    public fun get_dao_fee<X, Y, Curve>(
+    public fun get_dao_fee<Curve>(
         x_metadata: Object<Metadata>,
         y_metadata: Object<Metadata>,
     ): u64 acquires LiquidityPool, PoolAccountCapability {
         assert!(fa_helper::is_fa_sorted(x_metadata, y_metadata), ERR_WRONG_PAIR_ORDERING);
         assert!(exists<PoolAccountCapability>(@liquidswap_v05), ERR_POOL_DOES_NOT_EXIST);
 
-        let pool_obj_addr = get_pool_addr<X, Y, Curve>(x_metadata, y_metadata);
-        assert!(object::object_exists<LiquidityPool<X, Y, Curve>>(pool_obj_addr), ERR_POOL_DOES_NOT_EXIST);
+        let pool_obj_addr = get_pool_addr<Curve>(x_metadata, y_metadata);
+        assert!(object::object_exists<LiquidityPool<Curve>>(pool_obj_addr), ERR_POOL_DOES_NOT_EXIST);
 
-        let pool = borrow_global<LiquidityPool<X, Y, Curve>>(pool_obj_addr);
+        let pool = borrow_global<LiquidityPool<Curve>>(pool_obj_addr);
         pool.dao_fee
     }
 
@@ -944,7 +944,7 @@ module liquidswap_v05::liquidity_pool {
     /// * `dao_fee` - new dao fee to set.
     /// * `x_metadata` - metadata object of FungibleAsset X.
     /// * `y_metadata` - metadata object of FungibleAsset Y.
-    public entry fun set_dao_fee<X, Y, Curve>(
+    public entry fun set_dao_fee<Curve>(
         fee_admin: &signer,
         dao_fee: u64,
         x_metadata: Object<Metadata>,
@@ -953,11 +953,11 @@ module liquidswap_v05::liquidity_pool {
         assert!(fa_helper::is_fa_sorted(x_metadata, y_metadata), ERR_WRONG_PAIR_ORDERING);
         assert!(exists<PoolAccountCapability>(@liquidswap_v05), ERR_POOL_DOES_NOT_EXIST);
 
-        let pool_obj_addr = get_pool_addr<X, Y, Curve>(x_metadata, y_metadata);
-        assert!(object::object_exists<LiquidityPool<X, Y, Curve>>(pool_obj_addr), ERR_POOL_DOES_NOT_EXIST);
+        let pool_obj_addr = get_pool_addr<Curve>(x_metadata, y_metadata);
+        assert!(object::object_exists<LiquidityPool<Curve>>(pool_obj_addr), ERR_POOL_DOES_NOT_EXIST);
 
-        let pool = borrow_global_mut<LiquidityPool<X, Y, Curve>>(pool_obj_addr);
-        assert_pool_unlocked<X, Y, Curve>(pool);
+        let pool = borrow_global_mut<LiquidityPool<Curve>>(pool_obj_addr);
+        assert_pool_unlocked<Curve>(pool);
 
         assert!(signer::address_of(fee_admin) == global_config::get_fee_admin(), ERR_NOT_ADMIN);
         global_config::assert_valid_dao_fee(dao_fee);
@@ -979,7 +979,7 @@ module liquidswap_v05::liquidity_pool {
     /// Returns LiquidityPool object address.
     /// * `x_metadata` - metadata object of FungibleAsset X.
     /// * `y_metadata` - metadata object of FungibleAsset Y.
-    public fun get_pool_addr<X, Y, Curve>(
+    public fun get_pool_addr<Curve>(
         x_metadata: Object<Metadata>,
         y_metadata: Object<Metadata>,
     ): address acquires PoolAccountCapability {
@@ -995,12 +995,12 @@ module liquidswap_v05::liquidity_pool {
     /// Returns LP supply of given pool.
     /// * `x_metadata` - metadata object of FungibleAsset X.
     /// * `y_metadata` - metadata object of FungibleAsset Y.
-    public fun get_pool_lp_supply<X, Y, Curve>(
+    public fun get_pool_lp_supply<Curve>(
         x_metadata: Object<Metadata>,
         y_metadata: Object<Metadata>,
     ): u128 acquires LiquidityPool, PoolAccountCapability {
-        let pool_obj_addr = get_pool_addr<X, Y, Curve>(x_metadata, y_metadata);
-        let pool = borrow_global<LiquidityPool<X, Y, Curve>>(pool_obj_addr);
+        let pool_obj_addr = get_pool_addr<Curve>(x_metadata, y_metadata);
+        let pool = borrow_global<LiquidityPool<Curve>>(pool_obj_addr);
 
         fa_helper::fa_supply(pool.lp_metadata)
     }
@@ -1010,12 +1010,12 @@ module liquidswap_v05::liquidity_pool {
     /// Returns LP Metadata object of given pool.
     /// * `x_metadata` - metadata object of FungibleAsset X.
     /// * `y_metadata` - metadata object of FungibleAsset Y.
-    public fun get_pool_lp_metadata<X, Y, Curve>(
+    public fun get_pool_lp_metadata<Curve>(
         x_metadata: Object<Metadata>,
         y_metadata: Object<Metadata>,
     ): Object<Metadata> acquires LiquidityPool, PoolAccountCapability {
-        let pool_obj_addr = get_pool_addr<X, Y, Curve>(x_metadata, y_metadata);
-        let pool = borrow_global<LiquidityPool<X, Y, Curve>>(pool_obj_addr);
+        let pool_obj_addr = get_pool_addr<Curve>(x_metadata, y_metadata);
+        let pool = borrow_global<LiquidityPool<Curve>>(pool_obj_addr);
 
         pool.lp_metadata
     }
@@ -1121,13 +1121,13 @@ module liquidswap_v05::liquidity_pool {
         x_metadata: Object<Metadata>,
         y_metadata: Object<Metadata>,
     ): (u128, u128, u64) acquires EventsStore, LiquidityPool, PoolAccountCapability {
-        register<X, Y, curves::Uncorrelated>(test_account, x_metadata, y_metadata);
+        register<curves::Uncorrelated>(test_account, x_metadata, y_metadata);
 
-        let pool_obj_addr = get_pool_addr<X, Y, curves::Uncorrelated>(x_metadata, y_metadata);
-        assert!(exists<LiquidityPool<X, Y, curves::Uncorrelated>>(pool_obj_addr), ERR_POOL_DOES_NOT_EXIST);
+        let pool_obj_addr = get_pool_addr<curves::Uncorrelated>(x_metadata, y_metadata);
+        assert!(exists<LiquidityPool<curves::Uncorrelated>>(pool_obj_addr), ERR_POOL_DOES_NOT_EXIST);
 
         let pool =
-            borrow_global_mut<LiquidityPool<X, Y, curves::Uncorrelated>>(pool_obj_addr);
+            borrow_global_mut<LiquidityPool<curves::Uncorrelated>>(pool_obj_addr);
         pool.last_block_timestamp = prev_last_block_timestamp;
         pool.last_price_x_cumulative = prev_last_price_x_cumulative;
         pool.last_price_y_cumulative = prev_last_price_y_cumulative;
@@ -1138,17 +1138,17 @@ module liquidswap_v05::liquidity_pool {
     }
 
     #[test_only]
-    public fun get_reserved_value<X, Y, Curve>(
+    public fun get_reserved_value<Curve>(
         x_metadata: Object<Metadata>,
         y_metadata: Object<Metadata>,
     ): u64 acquires LiquidityPool, PoolAccountCapability {
-        let pool_obj_addr = get_pool_addr<X, Y, curves::Uncorrelated>(x_metadata, y_metadata);
-        let pool = borrow_global_mut<LiquidityPool<X, Y, Curve>>(pool_obj_addr);
+        let pool_obj_addr = get_pool_addr<curves::Uncorrelated>(x_metadata, y_metadata);
+        let pool = borrow_global_mut<LiquidityPool<Curve>>(pool_obj_addr);
 
         let fa_res_acc_addr =
             account::get_signer_capability_address(&pool.fa_signer_cap);
 
-        let lp_metadata = get_pool_lp_metadata<X, Y, Curve>(x_metadata, y_metadata);
+        let lp_metadata = get_pool_lp_metadata<Curve>(x_metadata, y_metadata);
         primary_fungible_store::balance(fa_res_acc_addr, lp_metadata)
     }
 }

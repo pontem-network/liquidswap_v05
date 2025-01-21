@@ -44,13 +44,13 @@ module liquidswap_v05::router {
     /// * `x_metadata` - metadata object of FungibleAsset X.
     /// * `y_metadata` - metadata object of FungibleAsset Y.
     /// Note: X, Y generic coin parameters must be sorted.
-    public fun register_pool<X, Y, Curve>(
+    public fun register_pool<Curve>(
         account: &signer,
         x_metadata: Object<Metadata>,
         y_metadata: Object<Metadata>,
     ) {
         assert!(fa_helper::is_fa_sorted(x_metadata, y_metadata), ERR_WRONG_FA_ORDER);
-        liquidity_pool::register<X, Y, Curve>(account, x_metadata, y_metadata);
+        liquidity_pool::register<Curve>(account, x_metadata, y_metadata);
     }
 
     /// Add liquidity to pool `X`/`Y` with rationality checks.
@@ -61,7 +61,7 @@ module liquidswap_v05::router {
     /// Returns remainders of FA X and Y, and LP FA: `(FungibleAsset, FungibleAsset, FungibleAsset)`.
     ///
     /// Note: X, Y generic coin parameters must be sorted.
-    public fun add_liquidity<X, Y, Curve>(
+    public fun add_liquidity<Curve>(
         fa_x: FungibleAsset,
         min_fa_x_val: u64,
         fa_y: FungibleAsset,
@@ -79,7 +79,7 @@ module liquidswap_v05::router {
         assert!(fa_y_val >= min_fa_y_val, ERR_INSUFFICIENT_Y_AMOUNT);
 
         let (optimal_x, optimal_y) =
-            calc_optimal_coin_values<X, Y, Curve>(
+            calc_optimal_coin_values<Curve>(
                 fa_x_val,
                 fa_y_val,
                 min_fa_x_val,
@@ -91,7 +91,7 @@ module liquidswap_v05::router {
         let fa_x_opt = fungible_asset::extract(&mut fa_x, optimal_x);
         let fa_y_opt = fungible_asset::extract(&mut fa_y, optimal_y);
 
-        let lp_coins = liquidity_pool::mint<X, Y, Curve>(fa_x_opt, fa_y_opt);
+        let lp_coins = liquidity_pool::mint<Curve>(fa_x_opt, fa_y_opt);
         (fa_x, fa_y, lp_coins)
     }
 
@@ -104,7 +104,7 @@ module liquidswap_v05::router {
     /// Returns both FA X and FA Y: `(FungibleAsset, FungibleAsset)`.
     ///
     /// Note: X, Y generic coin parameteres should be sorted.
-    public fun remove_liquidity<X, Y, Curve>(
+    public fun remove_liquidity<Curve>(
         lp_fa: FungibleAsset,
         min_x_out_val: u64,
         min_y_out_val: u64,
@@ -116,7 +116,7 @@ module liquidswap_v05::router {
         assert!(fa_helper::is_fa_sorted(x_metadata, y_metadata), ERR_WRONG_FA_ORDER);
 
         let (x_out, y_out) =
-            liquidity_pool::burn<X, Y, Curve>(lp_fa, x_metadata, y_metadata);
+            liquidity_pool::burn<Curve>(lp_fa, x_metadata, y_metadata);
 
         assert!(
             fungible_asset::amount(&x_out) >= min_x_out_val,
@@ -134,20 +134,20 @@ module liquidswap_v05::router {
     /// * `fa_out_min_val` - minimum amount of FA Y to get out.
     /// * `y_metadata` - metadata object of FungibleAsset Y.
     /// Returns FungibleAsset Y.
-    public fun swap_exact_coin_for_coin<X, Y, Curve>(
+    public fun swap_exact_coin_for_coin<Curve>(
         fa_in: FungibleAsset,
         fa_out_min_val: u64,
         y_metadata: Object<Metadata>,
     ): FungibleAsset {
         let x_metadata = fungible_asset::metadata_from_asset(&fa_in);
         let fa_in_val = fungible_asset::amount(&fa_in);
-        let fa_out_val = get_amount_out<X, Y, Curve>(fa_in_val, x_metadata, y_metadata);
+        let fa_out_val = get_amount_out<Curve>(fa_in_val, x_metadata, y_metadata);
 
         assert!(
             fa_out_val >= fa_out_min_val,
             ERR_FA_OUT_NUM_LESS_THAN_EXPECTED_MINIMUM,
         );
-        swap_coin_for_coin_unchecked<X, Y, Curve>(
+        swap_coin_for_coin_unchecked<Curve>(
             fa_in,
             fa_out_val,
             y_metadata,
@@ -159,13 +159,13 @@ module liquidswap_v05::router {
     /// * `fa_out_val` - exact amount of FA Y to get.
     /// * `y_metadata` - metadata object of FungibleAsset Y.
     /// Returns remainder of `fa_max_in` as FA X and FA Y: `(FungibleAsset, FungibleAsset)`.
-    public fun swap_coin_for_exact_coin<X, Y, Curve>(
+    public fun swap_coin_for_exact_coin<Curve>(
         fa_max_in: FungibleAsset,
         fa_out_val: u64,
         y_metadata: Object<Metadata>,
     ): (FungibleAsset, FungibleAsset) {
         let x_metadata = fungible_asset::metadata_from_asset(&fa_max_in);
-        let fa_in_val_needed = get_amount_in<X, Y, Curve>(fa_out_val, x_metadata, y_metadata);
+        let fa_in_val_needed = get_amount_in<Curve>(fa_out_val, x_metadata, y_metadata);
 
         let fa_val_max = fungible_asset::amount(&fa_max_in);
         assert!(
@@ -175,7 +175,7 @@ module liquidswap_v05::router {
 
         let fa_in = fungible_asset::extract(&mut fa_max_in, fa_in_val_needed);
         let fa_out =
-            swap_coin_for_coin_unchecked<X, Y, Curve>(fa_in, fa_out_val, y_metadata);
+            swap_coin_for_coin_unchecked<Curve>(fa_in, fa_out_val, y_metadata);
 
         (fa_max_in, fa_out)
     }
@@ -186,7 +186,7 @@ module liquidswap_v05::router {
     /// * `fa_out_val` - amount of FA Y to get out.
     /// * `y_metadata` - metadata object of FungibleAsset Y.
     /// Returns FA Y.
-    public fun swap_coin_for_coin_unchecked<X, Y, Curve>(
+    public fun swap_coin_for_coin_unchecked<Curve>(
         fa_in: FungibleAsset,
         fa_out_val: u64,
         y_metadata: Object<Metadata>,
@@ -194,14 +194,14 @@ module liquidswap_v05::router {
         let x_metadata = fungible_asset::metadata_from_asset(&fa_in);
         let (zero, fa_out);
         if (fa_helper::is_fa_sorted(x_metadata, y_metadata)) {
-            (zero, fa_out) = liquidity_pool::swap<X, Y, Curve>(
+            (zero, fa_out) = liquidity_pool::swap<Curve>(
                 fa_in,
                 0,
                 fungible_asset::zero(y_metadata),
                 fa_out_val,
             );
         } else {
-            (fa_out, zero) = liquidity_pool::swap<Y, X, Curve>(
+            (fa_out, zero) = liquidity_pool::swap<Curve>(
                 fungible_asset::zero(y_metadata),
                 fa_out_val,
                 fa_in,
@@ -219,14 +219,14 @@ module liquidswap_v05::router {
     /// * `x_metadata` - metadata object of FungibleAsset X.
     /// * `y_metadata` - metadata object of FungibleAsset Y.
     /// Returns `X` and `Y` FA decimals scales.
-    public fun get_decimals_scales<X, Y, Curve>(
+    public fun get_decimals_scales<Curve>(
         x_metadata: Object<Metadata>,
         y_metadata: Object<Metadata>,
     ): (u64, u64) {
         if (fa_helper::is_fa_sorted(x_metadata, y_metadata)) {
-            liquidity_pool::get_decimals_scales<X, Y, Curve>(x_metadata, y_metadata)
+            liquidity_pool::get_decimals_scales<Curve>(x_metadata, y_metadata)
         } else {
-            let (y, x) = liquidity_pool::get_decimals_scales<Y, X, Curve>(y_metadata, x_metadata);
+            let (y, x) = liquidity_pool::get_decimals_scales<Curve>(y_metadata, x_metadata);
             (x, y)
         }
     }
@@ -235,15 +235,15 @@ module liquidswap_v05::router {
     /// * `x_metadata` - metadata object of FungibleAsset X.
     /// * `y_metadata` - metadata object of FungibleAsset Y.
     /// Returns (X price, Y price, block_timestamp).
-    public fun get_cumulative_prices<X, Y, Curve>(
+    public fun get_cumulative_prices<Curve>(
         x_metadata: Object<Metadata>,
         y_metadata: Object<Metadata>,
     ): (u128, u128, u64) {
         if (fa_helper::is_fa_sorted(x_metadata, y_metadata)) {
-            liquidity_pool::get_cumulative_prices<X, Y, Curve>(x_metadata, y_metadata)
+            liquidity_pool::get_cumulative_prices<Curve>(x_metadata, y_metadata)
         } else {
             let (y, x, t) =
-                liquidity_pool::get_cumulative_prices<Y, X, Curve>(y_metadata, x_metadata);
+                liquidity_pool::get_cumulative_prices<Curve>(y_metadata, x_metadata);
             (x, y, t)
         }
     }
@@ -252,14 +252,14 @@ module liquidswap_v05::router {
     /// * `x_metadata` - metadata object of FungibleAsset X.
     /// * `y_metadata` - metadata object of FungibleAsset Y.
     /// Returns current reserves (`X`, `Y`).
-    public fun get_reserves_size<X, Y, Curve>(
+    public fun get_reserves_size<Curve>(
         x_metadata: Object<Metadata>,
         y_metadata: Object<Metadata>,
     ): (u64, u64) {
         if (fa_helper::is_fa_sorted(x_metadata, y_metadata)) {
-            liquidity_pool::get_reserves_size<X, Y, Curve>(x_metadata, y_metadata)
+            liquidity_pool::get_reserves_size<Curve>(x_metadata, y_metadata)
         } else {
-            let (y_res, x_res) = liquidity_pool::get_reserves_size<Y, X, Curve>(y_metadata, x_metadata);
+            let (y_res, x_res) = liquidity_pool::get_reserves_size<Curve>(y_metadata, x_metadata);
             (x_res, y_res)
         }
     }
@@ -267,45 +267,45 @@ module liquidswap_v05::router {
     /// Get fee for specific pool together with denominator (numerator, denominator).
     /// * `x_metadata` - metadata object of FungibleAsset X.
     /// * `y_metadata` - metadata object of FungibleAsset Y.
-    public fun get_fees_config<X, Y, Curve>(
+    public fun get_fees_config<Curve>(
         x_metadata: Object<Metadata>,
         y_metadata: Object<Metadata>,
     ): (u64, u64) {
         if (fa_helper::is_fa_sorted(x_metadata, y_metadata)) {
-            liquidity_pool::get_fees_config<X, Y, Curve>(x_metadata, y_metadata)
+            liquidity_pool::get_fees_config<Curve>(x_metadata, y_metadata)
         } else {
-            liquidity_pool::get_fees_config<Y, X, Curve>(y_metadata, x_metadata)
+            liquidity_pool::get_fees_config<Curve>(y_metadata, x_metadata)
         }
     }
 
     /// Get fee for specific pool.
     /// * `x_metadata` - metadata object of FungibleAsset X.
     /// * `y_metadata` - metadata object of FungibleAsset Y.
-    public fun get_fee<X, Y, Curve>(
+    public fun get_fee<Curve>(
         x_metadata: Object<Metadata>,
         y_metadata: Object<Metadata>,
     ): u64 {
         if (fa_helper::is_fa_sorted(x_metadata, y_metadata)) {
-            liquidity_pool::get_fee<X, Y, Curve>(x_metadata, y_metadata)
+            liquidity_pool::get_fee<Curve>(x_metadata, y_metadata)
         } else {
-            liquidity_pool::get_fee<Y, X, Curve>(y_metadata, x_metadata)
+            liquidity_pool::get_fee<Curve>(y_metadata, x_metadata)
         }
     }
 
     /// Get DAO fee for specific pool together with denominator (numerator, denominator).
     /// * `x_metadata` - metadata object of FungibleAsset X.
     /// * `y_metadata` - metadata object of FungibleAsset Y.
-    public fun get_dao_fees_config<X, Y, Curve>(
+    public fun get_dao_fees_config<Curve>(
         x_metadata: Object<Metadata>,
         y_metadata: Object<Metadata>,
     ): (u64, u64) {
         if (fa_helper::is_fa_sorted(x_metadata, y_metadata)) {
-            liquidity_pool::get_dao_fees_config<X, Y, Curve>(
+            liquidity_pool::get_dao_fees_config<Curve>(
                 x_metadata,
                 y_metadata,
             )
         } else {
-            liquidity_pool::get_dao_fees_config<Y, X, Curve>(
+            liquidity_pool::get_dao_fees_config<Curve>(
                 y_metadata,
                 x_metadata,
             )
@@ -315,17 +315,17 @@ module liquidswap_v05::router {
     /// Get DAO fee for specific pool.
     /// * `x_metadata` - metadata object of FungibleAsset X.
     /// * `y_metadata` - metadata object of FungibleAsset Y.
-    public fun get_dao_fee<X, Y, Curve>(
+    public fun get_dao_fee<Curve>(
         x_metadata: Object<Metadata>,
         y_metadata: Object<Metadata>,
     ): u64 {
         if (fa_helper::is_fa_sorted(x_metadata, y_metadata)) {
-            liquidity_pool::get_dao_fee<X, Y, Curve>(
+            liquidity_pool::get_dao_fee<Curve>(
                 x_metadata,
                 y_metadata,
             )
         } else {
-            liquidity_pool::get_dao_fee<Y, X, Curve>(
+            liquidity_pool::get_dao_fee<Curve>(
                 y_metadata,
                 x_metadata
             )
@@ -336,14 +336,14 @@ module liquidswap_v05::router {
     /// * `x_metadata` - metadata object of FungibleAsset X.
     /// * `y_metadata` - metadata object of FungibleAsset Y.
     /// If pool exists returns true, otherwise false.
-    public fun is_swap_exists<X, Y, Curve>(
+    public fun is_swap_exists<Curve>(
         x_metadata: Object<Metadata>,
         y_metadata: Object<Metadata>,
     ): bool {
         if (fa_helper::is_fa_sorted(x_metadata, y_metadata)) {
-            liquidity_pool::is_pool_exists<X, Y, Curve>(x_metadata, y_metadata)
+            liquidity_pool::is_pool_exists<Curve>(x_metadata, y_metadata)
         } else {
-            liquidity_pool::is_pool_exists<Y, X, Curve>(y_metadata, x_metadata)
+            liquidity_pool::is_pool_exists<Curve>(y_metadata, x_metadata)
         }
     }
 
@@ -357,7 +357,7 @@ module liquidswap_v05::router {
     /// * `x_metadata` - metadata object of FungibleAsset X.
     /// * `y_metadata` - metadata object of FungibleAsset Y.
     /// Returns both `X` and `Y` FA's amounts.
-    public fun calc_optimal_coin_values<X, Y, Curve>(
+    public fun calc_optimal_coin_values<Curve>(
         x_desired: u64,
         y_desired: u64,
         x_min: u64,
@@ -365,7 +365,7 @@ module liquidswap_v05::router {
         x_metadata: Object<Metadata>,
         y_metadata: Object<Metadata>,
     ): (u64, u64) {
-        let (reserves_x, reserves_y) = get_reserves_size<X, Y, Curve>(x_metadata, y_metadata);
+        let (reserves_x, reserves_y) = get_reserves_size<Curve>(x_metadata, y_metadata);
 
         if (reserves_x == 0 && reserves_y == 0) {
             return (x_desired, y_desired)
@@ -406,14 +406,14 @@ module liquidswap_v05::router {
     /// * `x_metadata` - metadata object of FungibleAsset X.
     /// * `y_metadata` - metadata object of FungibleAsset Y.
     /// Returns both `X` and `Y` FA amounts.
-    public fun get_reserves_for_lp_coins<X, Y, Curve>(
+    public fun get_reserves_for_lp_coins<Curve>(
         lp_to_burn_val: u64,
         x_metadata: Object<Metadata>,
         y_metadata: Object<Metadata>
     ): (u64, u64) {
-        let (x_reserve, y_reserve) = get_reserves_size<X, Y, Curve>(x_metadata, y_metadata);
+        let (x_reserve, y_reserve) = get_reserves_size<Curve>(x_metadata, y_metadata);
 
-        let lp_coins_total = liquidity_pool::get_pool_lp_supply<X, Y, Curve>(x_metadata, y_metadata);
+        let lp_coins_total = liquidity_pool::get_pool_lp_supply<Curve>(x_metadata, y_metadata);
 
         let x_to_return_val = math::mul_div_u128((lp_to_burn_val as u128), (x_reserve as u128), lp_coins_total);
         let y_to_return_val = math::mul_div_u128((lp_to_burn_val as u128), (y_reserve as u128), lp_coins_total);
@@ -432,15 +432,15 @@ module liquidswap_v05::router {
     /// * `x_metadata` - metadata object of FungibleAsset X.
     /// * `y_metadata` - metadata object of FungibleAsset Y.
     /// Returns amount of `Y` FA getting after swap.
-    public fun get_amount_out<X, Y, Curve>(
+    public fun get_amount_out<Curve>(
         amount_in: u64,
         x_metadata: Object<Metadata>,
         y_metadata: Object<Metadata>,
     ): u64 {
-        let (reserve_x, reserve_y) = get_reserves_size<X, Y, Curve>(x_metadata, y_metadata);
-        let (scale_x, scale_y) = get_decimals_scales<X, Y, Curve>(x_metadata, y_metadata);
+        let (reserve_x, reserve_y) = get_reserves_size<Curve>(x_metadata, y_metadata);
+        let (scale_x, scale_y) = get_decimals_scales<Curve>(x_metadata, y_metadata);
 
-        get_coin_out_with_fees<X, Y, Curve>(
+        get_coin_out_with_fees<Curve>(
             amount_in,
             reserve_x,
             reserve_y,
@@ -460,14 +460,14 @@ module liquidswap_v05::router {
     /// * `x_metadata` - metadata object of FungibleAsset X.
     /// * `y_metadata` - metadata object of FungibleAsset Y.
     /// Returns amount of `X` FA needed.
-    public fun get_amount_in<X, Y, Curve>(
+    public fun get_amount_in<Curve>(
         amount_out: u64,
         x_metadata: Object<Metadata>,
         y_metadata: Object<Metadata>,
     ): u64 {
-        let (reserve_x, reserve_y) = get_reserves_size<X, Y, Curve>(x_metadata, y_metadata);
-        let (scale_x, scale_y) = get_decimals_scales<X, Y, Curve>(x_metadata, y_metadata);
-        get_coin_in_with_fees<X, Y, Curve>(
+        let (reserve_x, reserve_y) = get_reserves_size<Curve>(x_metadata, y_metadata);
+        let (scale_x, scale_y) = get_decimals_scales<Curve>(x_metadata, y_metadata);
+        get_coin_in_with_fees<Curve>(
             amount_out,
             reserve_y,
             reserve_x,
@@ -489,7 +489,7 @@ module liquidswap_v05::router {
     /// * `x_metadata` - metadata object of FungibleAsset X.
     /// * `y_metadata` - metadata object of FungibleAsset Y.
     /// Returns amount of FA out after swap.
-    fun get_coin_out_with_fees<X, Y, Curve>(
+    fun get_coin_out_with_fees<Curve>(
         fa_in: u64,
         reserve_in: u64,
         reserve_out: u64,
@@ -499,7 +499,7 @@ module liquidswap_v05::router {
         y_metadata: Object<Metadata>,
     ): u64 {
         let (fee_pct, fee_scale) =
-            get_fees_config<X, Y, Curve>(x_metadata, y_metadata);
+            get_fees_config<Curve>(x_metadata, y_metadata);
         let fee_multiplier = fee_scale - fee_pct;
 
         let reserve_in_u128 = (reserve_in as u128);
@@ -554,7 +554,7 @@ module liquidswap_v05::router {
     ///  For stable curve math described in `coin_in` func into `../libs/StableCurve.move`.
     ///
     /// Returns amount of FA needed for swap.
-    fun get_coin_in_with_fees<X, Y, Curve>(
+    fun get_coin_in_with_fees<Curve>(
         fa_out: u64,
         reserve_out: u64,
         reserve_in: u64,
@@ -566,7 +566,7 @@ module liquidswap_v05::router {
         assert!(reserve_out > fa_out, ERR_INSUFFICIENT_Y_AMOUNT);
 
         let (fee_pct, fee_scale) =
-            get_fees_config<X, Y, Curve>(x_metadata, y_metadata);
+            get_fees_config<Curve>(x_metadata, y_metadata);
         let fee_multiplier = fee_scale - fee_pct;
 
         let fa_out_u128 = (fa_out as u128);
@@ -599,8 +599,8 @@ module liquidswap_v05::router {
     }
 
     #[test_only]
-    public fun current_price<X, Y, Curve>(x_metadata: Object<Metadata>, y_metadata: Object<Metadata>): u128 {
-        let (x_reserve, y_reserve) = get_reserves_size<X, Y, Curve>(x_metadata, y_metadata);
+    public fun current_price<Curve>(x_metadata: Object<Metadata>, y_metadata: Object<Metadata>): u128 {
+        let (x_reserve, y_reserve) = get_reserves_size<Curve>(x_metadata, y_metadata);
         ((x_reserve / y_reserve) as u128)
     }
 }

@@ -24,14 +24,14 @@ module liquidswap_v05::flashloan_tests {
         let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"BTC");
         let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
 
-        router::register_pool<BTC, USDT, Uncorrelated>(&lp_owner, fa_x_metadata, fa_y_metadata);
+        router::register_pool<Uncorrelated>(&lp_owner, fa_x_metadata, fa_y_metadata);
 
         let lp_owner_addr = signer::address_of(&lp_owner);
         if (x_val != 0 && y_val != 0) {
             let btc_fa = test_coins::mint_fa(&fa_admin, b"BTC", x_val);
             let usdt_fa = test_coins::mint_fa(&fa_admin, b"USDT", y_val);
             let lp_fa =
-                liquidity_pool::mint<BTC, USDT, Uncorrelated>(btc_fa, usdt_fa);
+                liquidity_pool::mint<Uncorrelated>(btc_fa, usdt_fa);
             primary_fungible_store::deposit(lp_owner_addr, lp_fa);
         };
 
@@ -44,13 +44,13 @@ module liquidswap_v05::flashloan_tests {
         let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"USDC");
         let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
 
-        router::register_pool<USDC, USDT, Stable>(&lp_owner, fa_x_metadata, fa_y_metadata);
+        router::register_pool<Stable>(&lp_owner, fa_x_metadata, fa_y_metadata);
 
         if (x_val != 0 && y_val != 0) {
             let usdc_fa = test_coins::mint_fa(&fa_admin, b"USDC", x_val);
             let usdt_fa = test_coins::mint_fa(&fa_admin, b"USDT", y_val);
             let lp_fa =
-                liquidity_pool::mint<USDC, USDT, Stable>(usdc_fa, usdt_fa);
+                liquidity_pool::mint<Stable>(usdc_fa, usdt_fa);
             primary_fungible_store::deposit(signer::address_of(&lp_owner), lp_fa);
         };
 
@@ -65,11 +65,11 @@ module liquidswap_v05::flashloan_tests {
         let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
 
         let (zero, usdt_fa, loan) =
-            liquidity_pool::flashloan<BTC, USDT, Uncorrelated>(0, 276404249, fa_x_metadata, fa_y_metadata);
+            liquidity_pool::flashloan<Uncorrelated>(0, 276404249, fa_x_metadata, fa_y_metadata);
         assert!(fungible_asset::amount(&usdt_fa) == 276404249, 1);
 
         let btc_fa_to_exchange = test_coins::mint_fa(&fa_admin, b"BTC", 1000000);
-        liquidity_pool::pay_flashloan<BTC, USDT, Uncorrelated>(
+        liquidity_pool::pay_flashloan<Uncorrelated>(
             btc_fa_to_exchange,
             fungible_asset::zero(fa_y_metadata),
             loan
@@ -78,7 +78,7 @@ module liquidswap_v05::flashloan_tests {
         fungible_asset::destroy_zero(zero);
         test_coins::burn_fa(&fa_admin, b"USDT", usdt_fa);
 
-        let (x_res, y_res) = liquidity_pool::get_reserves_size<BTC, USDT, Uncorrelated>(
+        let (x_res, y_res) = liquidity_pool::get_reserves_size<Uncorrelated>(
             fa_x_metadata,
             fa_y_metadata,
         );
@@ -102,7 +102,7 @@ module liquidswap_v05::flashloan_tests {
         let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
 
         let (zero, usdt_fa, loan) =
-            liquidity_pool::flashloan<BTC, USDT, Uncorrelated>(
+            liquidity_pool::flashloan<Uncorrelated>(
                 0,
                 270,
                 fa_x_metadata,
@@ -111,7 +111,7 @@ module liquidswap_v05::flashloan_tests {
         assert!(fungible_asset::amount(&usdt_fa) == 270, 1);
 
         let btc_fa_to_exchange = test_coins::mint_fa(&fa_admin, b"BTC", 1);
-        liquidity_pool::pay_flashloan<BTC, USDT, Uncorrelated>(
+        liquidity_pool::pay_flashloan<Uncorrelated>(
             btc_fa_to_exchange,
             fungible_asset::zero(fa_y_metadata),
             loan
@@ -120,7 +120,7 @@ module liquidswap_v05::flashloan_tests {
         fungible_asset::destroy_zero(zero);
         test_coins::burn_fa(&fa_admin, b"USDT", usdt_fa);
 
-        let (x_res, y_res) = liquidity_pool::get_reserves_size<BTC, USDT, Uncorrelated>(
+        let (x_res, y_res) = liquidity_pool::get_reserves_size<Uncorrelated>(
             fa_x_metadata,
             fa_y_metadata,
         );
@@ -136,7 +136,7 @@ module liquidswap_v05::flashloan_tests {
         let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
 
         let (btc_fa, usdt_fa, loan) =
-            liquidity_pool::flashloan<BTC, USDT, Uncorrelated>(
+            liquidity_pool::flashloan<Uncorrelated>(
                 100999001,
                 27723595481,
                 fa_x_metadata,
@@ -150,10 +150,10 @@ module liquidswap_v05::flashloan_tests {
         
        fungible_asset::merge(&mut btc_fa, btc_fa_to_add);
        fungible_asset::merge(&mut usdt_fa, usdt_fa_to_add);
-        liquidity_pool::pay_flashloan<BTC, USDT, Uncorrelated>(btc_fa, usdt_fa, loan);
+        liquidity_pool::pay_flashloan<Uncorrelated>(btc_fa, usdt_fa, loan);
 
         let (x_res, y_res) =
-            liquidity_pool::get_reserves_size<BTC, USDT, Uncorrelated>(fa_x_metadata, fa_y_metadata);
+            liquidity_pool::get_reserves_size<Uncorrelated>(fa_x_metadata, fa_y_metadata);
         assert!(x_res == 101201608, 3);
         assert!(y_res == 27779209515, 4);
 
@@ -184,7 +184,7 @@ module liquidswap_v05::flashloan_tests {
         let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
 
         let (zero, usdt_fa, loan) =
-            liquidity_pool::flashloan<BTC, USDT, Uncorrelated>(
+            liquidity_pool::flashloan<Uncorrelated>(
                 0,
                 90,
                 fa_x_metadata,
@@ -193,13 +193,13 @@ module liquidswap_v05::flashloan_tests {
         assert!(fungible_asset::amount(&usdt_fa) == 90, 1);
 
         let btc_fa_to_exchange = test_coins::mint_fa(&fa_admin, b"BTC", 100);
-        liquidity_pool::pay_flashloan<BTC, USDT, Uncorrelated>(btc_fa_to_exchange, fungible_asset::zero(fa_y_metadata), loan);
+        liquidity_pool::pay_flashloan<Uncorrelated>(btc_fa_to_exchange, fungible_asset::zero(fa_y_metadata), loan);
 
         fungible_asset::destroy_zero(zero);
         test_coins::burn_fa(&fa_admin, b"USDT", usdt_fa);
 
         let (x_res, y_res) =
-            liquidity_pool::get_reserves_size<BTC, USDT, Uncorrelated>(fa_x_metadata, fa_y_metadata);
+            liquidity_pool::get_reserves_size<Uncorrelated>(fa_x_metadata, fa_y_metadata);
         assert!(x_res == 1101, 2);
         assert!(y_res == 911, 3);
     }
@@ -212,7 +212,7 @@ module liquidswap_v05::flashloan_tests {
         let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
 
         let (zero, usdt_fa, loan) =
-            liquidity_pool::flashloan<BTC, USDT, Uncorrelated>(
+            liquidity_pool::flashloan<Uncorrelated>(
                 0,
                 1,
                 fa_x_metadata,
@@ -221,13 +221,13 @@ module liquidswap_v05::flashloan_tests {
         assert!(fungible_asset::amount(&usdt_fa) == 1, 1);
 
         let btc_fa_to_exchange = test_coins::mint_fa(&fa_admin, b"BTC", 2);
-        liquidity_pool::pay_flashloan<BTC, USDT, Uncorrelated>(btc_fa_to_exchange, fungible_asset::zero(fa_y_metadata), loan);
+        liquidity_pool::pay_flashloan<Uncorrelated>(btc_fa_to_exchange, fungible_asset::zero(fa_y_metadata), loan);
 
         fungible_asset::destroy_zero(zero);
         test_coins::burn_fa(&fa_admin, b"USDT", usdt_fa);
 
         let (x_res, y_res) =
-            liquidity_pool::get_reserves_size<BTC, USDT, Uncorrelated>(
+            liquidity_pool::get_reserves_size<Uncorrelated>(
                 fa_x_metadata,
                 fa_y_metadata,
             );
@@ -243,7 +243,7 @@ module liquidswap_v05::flashloan_tests {
         let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
 
         let (btc_fa, usdt_fa, loan) =
-            liquidity_pool::flashloan<BTC, USDT, Uncorrelated>(
+            liquidity_pool::flashloan<Uncorrelated>(
                 1103,
                 910,
                 fa_x_metadata,
@@ -256,10 +256,10 @@ module liquidswap_v05::flashloan_tests {
         let usdt_fa_to_add = test_coins::mint_fa(&fa_admin, b"USDT", 3);
        fungible_asset::merge(&mut btc_fa, btc_fa_to_add);
        fungible_asset::merge(&mut usdt_fa, usdt_fa_to_add);
-        liquidity_pool::pay_flashloan<BTC, USDT, Uncorrelated>(btc_fa, usdt_fa, loan);
+        liquidity_pool::pay_flashloan<Uncorrelated>(btc_fa, usdt_fa, loan);
 
         let (x_res, y_res) =
-            liquidity_pool::get_reserves_size<BTC, USDT, Uncorrelated>(fa_x_metadata, fa_y_metadata);
+            liquidity_pool::get_reserves_size<Uncorrelated>(fa_x_metadata, fa_y_metadata);
         assert!(x_res == 1106, 3);
         assert!(y_res == 913, 4);
     }
@@ -273,7 +273,7 @@ module liquidswap_v05::flashloan_tests {
 
         let btc_fa_to_exchange = test_coins::mint_fa(&fa_admin, b"BTC", 10000000000);
         let (zero, usdt_fa, loan) =
-            liquidity_pool::flashloan<BTC, USDT, Uncorrelated>(
+            liquidity_pool::flashloan<Uncorrelated>(
                 0,
                 9970000000,
                 fa_x_metadata,
@@ -281,13 +281,13 @@ module liquidswap_v05::flashloan_tests {
             );
         assert!(fungible_asset::amount(&usdt_fa) == 9970000000, 1);
 
-        liquidity_pool::pay_flashloan<BTC, USDT, Uncorrelated>(btc_fa_to_exchange, fungible_asset::zero(fa_y_metadata), loan);
+        liquidity_pool::pay_flashloan<Uncorrelated>(btc_fa_to_exchange, fungible_asset::zero(fa_y_metadata), loan);
 
         fungible_asset::destroy_zero(zero);
         test_coins::burn_fa(&fa_admin, b"USDT", usdt_fa);
 
         let (x_res, y_res) =
-            liquidity_pool::get_reserves_size<BTC, USDT, Uncorrelated>(fa_x_metadata, fa_y_metadata);
+            liquidity_pool::get_reserves_size<Uncorrelated>(fa_x_metadata, fa_y_metadata);
         assert!(x_res == 18446744073699551615, 2);
         assert!(y_res == 18446744063739551615, 3);
     }
@@ -300,7 +300,7 @@ module liquidswap_v05::flashloan_tests {
         let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
 
         let (zero, usdt_fa, loan) =
-            liquidity_pool::flashloan<BTC, USDT, Uncorrelated>(
+            liquidity_pool::flashloan<Uncorrelated>(
                 0,
                 1,
                 fa_x_metadata,
@@ -309,13 +309,13 @@ module liquidswap_v05::flashloan_tests {
         assert!(fungible_asset::amount(&usdt_fa) == 1, 1);
 
         let btc_fa_to_exchange = test_coins::mint_fa(&fa_admin, b"BTC", 2);
-        liquidity_pool::pay_flashloan<BTC, USDT, Uncorrelated>(btc_fa_to_exchange, fungible_asset::zero(fa_y_metadata), loan);
+        liquidity_pool::pay_flashloan<Uncorrelated>(btc_fa_to_exchange, fungible_asset::zero(fa_y_metadata), loan);
 
         fungible_asset::destroy_zero(zero);
         test_coins::burn_fa(&fa_admin, b"USDT", usdt_fa);
 
         let (x_res, y_res) =
-            liquidity_pool::get_reserves_size<BTC, USDT, Uncorrelated>(fa_x_metadata, fa_y_metadata);
+            liquidity_pool::get_reserves_size<Uncorrelated>(fa_x_metadata, fa_y_metadata);
         assert!(x_res == 18446744073699551617, 2);
         assert!(y_res == 18446744063739551614, 3);
     }
@@ -328,7 +328,7 @@ module liquidswap_v05::flashloan_tests {
         let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
 
         let (zero, usdt_fa, loan) =
-            liquidity_pool::flashloan<USDC, USDT, Stable>(
+            liquidity_pool::flashloan<Stable>(
                 0,
                 99699999,
                 fa_x_metadata,
@@ -337,13 +337,13 @@ module liquidswap_v05::flashloan_tests {
         assert!(fungible_asset::amount(&usdt_fa) == 99699999, 1);
 
         let usdc_fa_to_exchange = test_coins::mint_fa(&fa_admin, b"USDC", 1000000);
-        liquidity_pool::pay_flashloan<USDC, USDT, Stable>(usdc_fa_to_exchange, fungible_asset::zero(fa_y_metadata), loan);
+        liquidity_pool::pay_flashloan<Stable>(usdc_fa_to_exchange, fungible_asset::zero(fa_y_metadata), loan);
 
         fungible_asset::destroy_zero(zero);
         test_coins::burn_fa(&fa_admin, b"USDT", usdt_fa);
 
         let (x_res, y_res) =
-            liquidity_pool::get_reserves_size<USDC, USDT, Stable>(fa_x_metadata, fa_y_metadata);
+            liquidity_pool::get_reserves_size<Stable>(fa_x_metadata, fa_y_metadata);
         assert!(x_res == 15000999800, 2);
         assert!(y_res == 1499900300001, 3);
     }
@@ -356,7 +356,7 @@ module liquidswap_v05::flashloan_tests {
         let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
 
         let (zero, usdt_fa, loan) =
-            liquidity_pool::flashloan<USDC, USDT, Stable>(
+            liquidity_pool::flashloan<Stable>(
                 0,
                 99,
                 fa_x_metadata,
@@ -365,13 +365,13 @@ module liquidswap_v05::flashloan_tests {
         assert!(fungible_asset::amount(&usdt_fa) == 99, 1);
 
         let usdc_fa_to_exchange = test_coins::mint_fa(&fa_admin, b"USDC", 1);
-        liquidity_pool::pay_flashloan<USDC, USDT, Stable>(usdc_fa_to_exchange, fungible_asset::zero(fa_y_metadata), loan);
+        liquidity_pool::pay_flashloan<Stable>(usdc_fa_to_exchange, fungible_asset::zero(fa_y_metadata), loan);
 
         fungible_asset::destroy_zero(zero);
         test_coins::burn_fa(&fa_admin, b"USDT", usdt_fa);
 
         let (x_res, y_res) =
-            liquidity_pool::get_reserves_size<USDC, USDT, Stable>(fa_x_metadata, fa_y_metadata);
+            liquidity_pool::get_reserves_size<Stable>(fa_x_metadata, fa_y_metadata);
         assert!(x_res == 15000999001, 2);
         assert!(y_res == 1499900299902, 3);
     }
@@ -384,7 +384,7 @@ module liquidswap_v05::flashloan_tests {
         let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
 
         let (zero, usdt_fa, loan) =
-            liquidity_pool::flashloan<USDC, USDT, Stable>(
+            liquidity_pool::flashloan<Stable>(
                 0,
                 90,
                 fa_x_metadata,
@@ -393,13 +393,13 @@ module liquidswap_v05::flashloan_tests {
         assert!(fungible_asset::amount(&usdt_fa) == 90, 1);
 
         let usdc_fa_to_exchange = test_coins::mint_fa(&fa_admin, b"USDC", 33);
-        liquidity_pool::pay_flashloan<USDC, USDT, Stable>(usdc_fa_to_exchange, fungible_asset::zero(fa_y_metadata), loan);
+        liquidity_pool::pay_flashloan<Stable>(usdc_fa_to_exchange, fungible_asset::zero(fa_y_metadata), loan);
 
         fungible_asset::destroy_zero(zero);
         test_coins::burn_fa(&fa_admin, b"USDT", usdt_fa);
 
         let (x_res, y_res) =
-            liquidity_pool::get_reserves_size<USDC, USDT, Stable>(fa_x_metadata, fa_y_metadata);
+            liquidity_pool::get_reserves_size<Stable>(fa_x_metadata, fa_y_metadata);
         assert!(x_res == 1034, 2);
         assert!(y_res == 911, 3);
     }
@@ -412,7 +412,7 @@ module liquidswap_v05::flashloan_tests {
         let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
 
         let (zero, usdt_fa, loan) =
-            liquidity_pool::flashloan<USDC, USDT, Stable>(
+            liquidity_pool::flashloan<Stable>(
                 0,
                 1,
                 fa_x_metadata,
@@ -421,13 +421,13 @@ module liquidswap_v05::flashloan_tests {
         assert!(fungible_asset::amount(&usdt_fa) == 1, 1);
 
         let usdc_fa_to_exchange = test_coins::mint_fa(&fa_admin, b"USDC", 2);
-        liquidity_pool::pay_flashloan<USDC, USDT, Stable>(usdc_fa_to_exchange, fungible_asset::zero(fa_y_metadata), loan);
+        liquidity_pool::pay_flashloan<Stable>(usdc_fa_to_exchange, fungible_asset::zero(fa_y_metadata), loan);
 
         fungible_asset::destroy_zero(zero);
         test_coins::burn_fa(&fa_admin, b"USDT", usdt_fa);
 
         let (x_res, y_res) =
-            liquidity_pool::get_reserves_size<USDC, USDT, Stable>(fa_x_metadata, fa_y_metadata);
+            liquidity_pool::get_reserves_size<Stable>(fa_x_metadata, fa_y_metadata);
         assert!(x_res == 1003, 2);
         assert!(y_res == 1000, 3);
     }
@@ -440,7 +440,7 @@ module liquidswap_v05::flashloan_tests {
         let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
 
         let (usdc_fa, usdt_fa, loan) =
-            liquidity_pool::flashloan<USDC, USDT, Stable>(
+            liquidity_pool::flashloan<Stable>(
                 1001,
                 1001,
                 fa_x_metadata,
@@ -453,10 +453,10 @@ module liquidswap_v05::flashloan_tests {
         let usdt_fa_to_add = test_coins::mint_fa(&fa_admin, b"USDT", 3);
        fungible_asset::merge(&mut usdc_fa, usdc_fa_to_add);
        fungible_asset::merge(&mut usdt_fa, usdt_fa_to_add);
-        liquidity_pool::pay_flashloan<USDC, USDT, Stable>(usdc_fa, usdt_fa, loan);
+        liquidity_pool::pay_flashloan<Stable>(usdc_fa, usdt_fa, loan);
 
         let (x_res, y_res) =
-            liquidity_pool::get_reserves_size<USDC, USDT, Stable>(fa_x_metadata, fa_y_metadata);
+            liquidity_pool::get_reserves_size<Stable>(fa_x_metadata, fa_y_metadata);
         assert!(x_res == 1005, 3);
         assert!(y_res == 1004, 4);
     }
@@ -469,7 +469,7 @@ module liquidswap_v05::flashloan_tests {
         let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
 
         let (zero, usdt_fa, loan) =
-            liquidity_pool::flashloan<USDC, USDT, Stable>(
+            liquidity_pool::flashloan<Stable>(
                 0,
                 996999980359,
                 fa_x_metadata,
@@ -478,13 +478,13 @@ module liquidswap_v05::flashloan_tests {
         assert!(fungible_asset::amount(&usdt_fa) == 996999980359, 1);
 
         let usdc_fa_to_exchange = test_coins::mint_fa(&fa_admin, b"USDC", 10000000000);
-        liquidity_pool::pay_flashloan<USDC, USDT, Stable>(usdc_fa_to_exchange, fungible_asset::zero(fa_y_metadata), loan);
+        liquidity_pool::pay_flashloan<Stable>(usdc_fa_to_exchange, fungible_asset::zero(fa_y_metadata), loan);
 
         fungible_asset::destroy_zero(zero);
         test_coins::burn_fa(&fa_admin, b"USDT", usdt_fa);
 
         let (x_res, y_res) =
-            liquidity_pool::get_reserves_size<USDC, USDT, Stable>(fa_x_metadata, fa_y_metadata);
+            liquidity_pool::get_reserves_size<Stable>(fa_x_metadata, fa_y_metadata);
         assert!(x_res == 2939998000000, 2);
         assert!(y_res == 292003000019641, 3);
     }
@@ -497,7 +497,7 @@ module liquidswap_v05::flashloan_tests {
         let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
 
         let (zero, usdt_fa, loan) =
-            liquidity_pool::flashloan<USDC, USDT, Stable>(
+            liquidity_pool::flashloan<Stable>(
                 0,
                 99,
                 fa_x_metadata,
@@ -506,13 +506,13 @@ module liquidswap_v05::flashloan_tests {
         assert!(fungible_asset::amount(&usdt_fa) == 99, 1);
 
         let usdc_fa_to_exchange = test_coins::mint_fa(&fa_admin, b"USDC", 1);
-        liquidity_pool::pay_flashloan<USDC, USDT, Stable>(usdc_fa_to_exchange, fungible_asset::zero(fa_y_metadata), loan);
+        liquidity_pool::pay_flashloan<Stable>(usdc_fa_to_exchange, fungible_asset::zero(fa_y_metadata), loan);
 
         fungible_asset::destroy_zero(zero);
         test_coins::burn_fa(&fa_admin, b"USDT", usdt_fa);
 
         let (x_res, y_res) =
-            liquidity_pool::get_reserves_size<USDC, USDT, Stable>(fa_x_metadata, fa_y_metadata);
+            liquidity_pool::get_reserves_size<Stable>(fa_x_metadata, fa_y_metadata);
         assert!(x_res == 2930000000001, 2);
         assert!(y_res == 292999999999901, 3);
     }
@@ -528,14 +528,14 @@ module liquidswap_v05::flashloan_tests {
         let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
 
         let (zero, usdt_fa, loan) =
-            liquidity_pool::flashloan<BTC, USDT, Uncorrelated>(
+            liquidity_pool::flashloan<Uncorrelated>(
                 0,
                 276404249,
                 fa_x_metadata,
                 fa_y_metadata,
             );
 
-        liquidity_pool::pay_flashloan<BTC, USDT, Uncorrelated>(fungible_asset::zero(fa_x_metadata), usdt_fa, loan);
+        liquidity_pool::pay_flashloan<Uncorrelated>(fungible_asset::zero(fa_x_metadata), usdt_fa, loan);
 
         fungible_asset::destroy_zero(zero);
     }
@@ -549,14 +549,14 @@ module liquidswap_v05::flashloan_tests {
         let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
 
         let (zero, usdt_fa, loan) =
-            liquidity_pool::flashloan<BTC, USDT, Uncorrelated>(
+            liquidity_pool::flashloan<Uncorrelated>(
                 0,
                 0,
                 fa_x_metadata,
                 fa_y_metadata,
             );
 
-        liquidity_pool::pay_flashloan<BTC, USDT, Uncorrelated>(fungible_asset::zero(fa_x_metadata), usdt_fa, loan);
+        liquidity_pool::pay_flashloan<Uncorrelated>(fungible_asset::zero(fa_x_metadata), usdt_fa, loan);
 
         fungible_asset::destroy_zero(zero);
     }
@@ -570,7 +570,7 @@ module liquidswap_v05::flashloan_tests {
         let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
 
         let (zero, usdt_fa, loan) =
-            liquidity_pool::flashloan<BTC, USDT, Uncorrelated>(
+            liquidity_pool::flashloan<Uncorrelated>(
                 0,
                 276404249,
                 fa_x_metadata,
@@ -578,7 +578,7 @@ module liquidswap_v05::flashloan_tests {
             );
 
         let btc_fa_to_exchange = test_coins::mint_fa(&fa_admin, b"BTC", 999999);
-        liquidity_pool::pay_flashloan<BTC, USDT, Uncorrelated>(btc_fa_to_exchange, fungible_asset::zero(fa_y_metadata), loan);
+        liquidity_pool::pay_flashloan<Uncorrelated>(btc_fa_to_exchange, fungible_asset::zero(fa_y_metadata), loan);
 
         fungible_asset::destroy_zero(zero);
         test_coins::burn_fa(&fa_admin, b"USDT", usdt_fa);
@@ -593,14 +593,14 @@ module liquidswap_v05::flashloan_tests {
         let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
 
         let (zero, usdt_fa, loan) =
-            liquidity_pool::flashloan<BTC, USDT, Uncorrelated>(
+            liquidity_pool::flashloan<Uncorrelated>(
                 0,
                 280000000,
                 fa_x_metadata,
                 fa_y_metadata,
             );
 
-        liquidity_pool::pay_flashloan<BTC, USDT, Uncorrelated>(fungible_asset::zero(fa_x_metadata), usdt_fa, loan);
+        liquidity_pool::pay_flashloan<Uncorrelated>(fungible_asset::zero(fa_x_metadata), usdt_fa, loan);
 
         fungible_asset::destroy_zero(zero);
     }
@@ -614,14 +614,14 @@ module liquidswap_v05::flashloan_tests {
         let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
 
         let (zero, usdt_fa, loan) =
-            liquidity_pool::flashloan<BTC, USDT, Uncorrelated>(
+            liquidity_pool::flashloan<Uncorrelated>(
                 0,
                 28000000001,
                 fa_x_metadata,
                 fa_y_metadata,
             );
 
-        liquidity_pool::pay_flashloan<BTC, USDT, Uncorrelated>(fungible_asset::zero(fa_x_metadata), usdt_fa, loan);
+        liquidity_pool::pay_flashloan<Uncorrelated>(fungible_asset::zero(fa_x_metadata), usdt_fa, loan);
 
         fungible_asset::destroy_zero(zero);
     }
@@ -635,7 +635,7 @@ module liquidswap_v05::flashloan_tests {
         let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
 
         let (zero, usdt_fa, loan) =
-            liquidity_pool::flashloan<BTC, USDT, Uncorrelated>(
+            liquidity_pool::flashloan<Uncorrelated>(
                 0,
                 280000000,
                 fa_x_metadata,
@@ -647,11 +647,11 @@ module liquidswap_v05::flashloan_tests {
         let btc_fa_mint = test_coins::mint_fa(&fa_admin, b"BTC", 1000000);
         let usdt_fa_mint = test_coins::mint_fa(&fa_admin, b"USDT", 280000000);
         let lp_fa_mint =
-            liquidity_pool::mint<BTC, USDT, Uncorrelated>(btc_fa_mint, usdt_fa_mint);
+            liquidity_pool::mint<Uncorrelated>(btc_fa_mint, usdt_fa_mint);
         primary_fungible_store::deposit(signer::address_of(&lp_owner), lp_fa_mint);
 
         let btc_fa_to_exchange = test_coins::mint_fa(&fa_admin, b"BTC", 2);
-        liquidity_pool::pay_flashloan<BTC, USDT, Uncorrelated>(btc_fa_to_exchange, fungible_asset::zero(fa_y_metadata), loan);
+        liquidity_pool::pay_flashloan<Uncorrelated>(btc_fa_to_exchange, fungible_asset::zero(fa_y_metadata), loan);
 
         fungible_asset::destroy_zero(zero);
         test_coins::burn_fa(&fa_admin, b"USDT", usdt_fa);
@@ -666,7 +666,7 @@ module liquidswap_v05::flashloan_tests {
         let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
 
         let (zero, usdt_fa, loan) =
-            liquidity_pool::flashloan<BTC, USDT, Uncorrelated>(
+            liquidity_pool::flashloan<Uncorrelated>(
                 0,
                 276404249,
                 fa_x_metadata,
@@ -677,7 +677,7 @@ module liquidswap_v05::flashloan_tests {
         // swap when pool is locked
         let btc_fa_to_exchange = test_coins::mint_fa(&fa_admin, b"BTC", 1000000);
         let (zero_swap, usdt_fa_swap) =
-            liquidity_pool::swap<BTC, USDT, Uncorrelated>(
+            liquidity_pool::swap<Uncorrelated>(
                 btc_fa_to_exchange, 0,
                 fungible_asset::zero(fa_y_metadata), 276404249
             );
@@ -685,7 +685,7 @@ module liquidswap_v05::flashloan_tests {
         test_coins::burn_fa(&fa_admin, b"USDT", usdt_fa_swap);
 
         let btc_fa_to_exchange = test_coins::mint_fa(&fa_admin, b"BTC", 1000000);
-        liquidity_pool::pay_flashloan<BTC, USDT, Uncorrelated>(btc_fa_to_exchange, fungible_asset::zero(fa_y_metadata), loan);
+        liquidity_pool::pay_flashloan<Uncorrelated>(btc_fa_to_exchange, fungible_asset::zero(fa_y_metadata), loan);
 
         fungible_asset::destroy_zero(zero);
         test_coins::burn_fa(&fa_admin, b"USDT", usdt_fa);
@@ -700,7 +700,7 @@ module liquidswap_v05::flashloan_tests {
         let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
 
         let (zero, usdt_fa, loan) =
-            liquidity_pool::flashloan<BTC, USDT, Uncorrelated>(
+            liquidity_pool::flashloan<Uncorrelated>(
                 0,
                 276404249,
                 fa_x_metadata,
@@ -721,12 +721,12 @@ module liquidswap_v05::flashloan_tests {
         let lp_fa =
             primary_fungible_store::withdraw(&lp_owner, lp_metadata, 16733190);
         let (btc_return, usdt_return) =
-            liquidity_pool::burn<BTC, USDT, Uncorrelated>(lp_fa, fa_x_metadata, fa_y_metadata);
+            liquidity_pool::burn<Uncorrelated>(lp_fa, fa_x_metadata, fa_y_metadata);
         test_coins::burn_fa(&fa_admin, b"BTC", btc_return);
         test_coins::burn_fa(&fa_admin, b"USDT", usdt_return);
 
         let btc_fa_to_exchange = test_coins::mint_fa(&fa_admin, b"BTC", 1000000);
-        liquidity_pool::pay_flashloan<BTC, USDT, Uncorrelated>(btc_fa_to_exchange, fungible_asset::zero(fa_y_metadata), loan);
+        liquidity_pool::pay_flashloan<Uncorrelated>(btc_fa_to_exchange, fungible_asset::zero(fa_y_metadata), loan);
 
         fungible_asset::destroy_zero(zero);
         test_coins::burn_fa(&fa_admin, b"USDT", usdt_fa);
@@ -741,7 +741,7 @@ module liquidswap_v05::flashloan_tests {
         let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
 
         let (zero, usdt_fa, loan) =
-            liquidity_pool::flashloan<BTC, USDT, Uncorrelated>(
+            liquidity_pool::flashloan<Uncorrelated>(
                 0,
                 276404249,
                 fa_x_metadata,
@@ -751,19 +751,19 @@ module liquidswap_v05::flashloan_tests {
 
         // flashloan when pool is locked
         let (zero_test, usdt_fa_test, loan_test) =
-            liquidity_pool::flashloan<BTC, USDT, Uncorrelated>(
+            liquidity_pool::flashloan<Uncorrelated>(
                 0,
                 276404249,
                 fa_x_metadata,
                 fa_y_metadata,
             );
         let btc_fa_to_exchange_test = test_coins::mint_fa(&fa_admin, b"BTC", 1000000);
-        liquidity_pool::pay_flashloan<BTC, USDT, Uncorrelated>(btc_fa_to_exchange_test, fungible_asset::zero(fa_y_metadata), loan_test);
+        liquidity_pool::pay_flashloan<Uncorrelated>(btc_fa_to_exchange_test, fungible_asset::zero(fa_y_metadata), loan_test);
         fungible_asset::destroy_zero(zero_test);
         test_coins::burn_fa(&fa_admin, b"USDT", usdt_fa_test);
 
         let btc_fa_to_exchange = test_coins::mint_fa(&fa_admin, b"BTC", 1000000);
-        liquidity_pool::pay_flashloan<BTC, USDT, Uncorrelated>(btc_fa_to_exchange, fungible_asset::zero(fa_y_metadata), loan);
+        liquidity_pool::pay_flashloan<Uncorrelated>(btc_fa_to_exchange, fungible_asset::zero(fa_y_metadata), loan);
 
         fungible_asset::destroy_zero(zero);
         test_coins::burn_fa(&fa_admin, b"USDT", usdt_fa);
@@ -778,7 +778,7 @@ module liquidswap_v05::flashloan_tests {
         let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
 
         let (zero, usdt_fa, loan) =
-            liquidity_pool::flashloan<BTC, USDT, Uncorrelated>(
+            liquidity_pool::flashloan<Uncorrelated>(
                 0,
                 276404249,
                 fa_x_metadata,
@@ -787,10 +787,10 @@ module liquidswap_v05::flashloan_tests {
         assert!(fungible_asset::amount(&usdt_fa) == 276404249, 1);
 
         // get reserves when pool is locked
-        let (_, _) = liquidity_pool::get_reserves_size<BTC, USDT, Uncorrelated>(fa_x_metadata, fa_y_metadata);
+        let (_, _) = liquidity_pool::get_reserves_size<Uncorrelated>(fa_x_metadata, fa_y_metadata);
 
         let btc_fa_to_exchange = test_coins::mint_fa(&fa_admin, b"BTC", 1000000);
-        liquidity_pool::pay_flashloan<BTC, USDT, Uncorrelated>(btc_fa_to_exchange, fungible_asset::zero(fa_y_metadata), loan);
+        liquidity_pool::pay_flashloan<Uncorrelated>(btc_fa_to_exchange, fungible_asset::zero(fa_y_metadata), loan);
 
         fungible_asset::destroy_zero(zero);
         test_coins::burn_fa(&fa_admin, b"USDT", usdt_fa);
@@ -805,7 +805,7 @@ module liquidswap_v05::flashloan_tests {
         let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
 
         let (zero, usdt_fa, loan) =
-            liquidity_pool::flashloan<BTC, USDT, Uncorrelated>(
+            liquidity_pool::flashloan<Uncorrelated>(
                 0,
                 276404249,
                 fa_x_metadata,
@@ -814,10 +814,10 @@ module liquidswap_v05::flashloan_tests {
         assert!(fungible_asset::amount(&usdt_fa) == 276404249, 1);
 
         // get cumulative prices when pool is locked
-        let (_, _, _) = liquidity_pool::get_cumulative_prices<BTC, USDT, Uncorrelated>(fa_x_metadata, fa_y_metadata);
+        let (_, _, _) = liquidity_pool::get_cumulative_prices<Uncorrelated>(fa_x_metadata, fa_y_metadata);
 
         let btc_fa_to_exchange = test_coins::mint_fa(&fa_admin, b"BTC", 1000000);
-        liquidity_pool::pay_flashloan<BTC, USDT, Uncorrelated>(btc_fa_to_exchange, fungible_asset::zero(fa_y_metadata), loan);
+        liquidity_pool::pay_flashloan<Uncorrelated>(btc_fa_to_exchange, fungible_asset::zero(fa_y_metadata), loan);
 
         fungible_asset::destroy_zero(zero);
         test_coins::burn_fa(&fa_admin, b"USDT", usdt_fa);
@@ -832,7 +832,7 @@ module liquidswap_v05::flashloan_tests {
         let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
 
         let (zero, usdt_fa, loan) =
-            liquidity_pool::flashloan<BTC, USDT, Uncorrelated>(
+            liquidity_pool::flashloan<Uncorrelated>(
                 0,
                 276404249,
                 fa_x_metadata,
@@ -841,10 +841,10 @@ module liquidswap_v05::flashloan_tests {
         assert!(fungible_asset::amount(&usdt_fa) == 276404249, 1);
 
         // set fee when pool is locked
-        liquidity_pool::set_fee<BTC, USDT, Uncorrelated>(&fee_admin, 10, fa_x_metadata, fa_y_metadata);
+        liquidity_pool::set_fee<Uncorrelated>(&fee_admin, 10, fa_x_metadata, fa_y_metadata);
 
         let btc_fa_to_exchange = test_coins::mint_fa(&fa_admin, b"BTC", 1000000);
-        liquidity_pool::pay_flashloan<BTC, USDT, Uncorrelated>(btc_fa_to_exchange, fungible_asset::zero(fa_y_metadata), loan);
+        liquidity_pool::pay_flashloan<Uncorrelated>(btc_fa_to_exchange, fungible_asset::zero(fa_y_metadata), loan);
 
         fungible_asset::destroy_zero(zero);
         test_coins::burn_fa(&fa_admin, b"USDT", usdt_fa);
@@ -859,7 +859,7 @@ module liquidswap_v05::flashloan_tests {
         let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
 
         let (zero, usdt_fa, loan) =
-            liquidity_pool::flashloan<BTC, USDT, Uncorrelated>(
+            liquidity_pool::flashloan<Uncorrelated>(
                 0,
                 276404249,
                 fa_x_metadata,
@@ -868,10 +868,10 @@ module liquidswap_v05::flashloan_tests {
         assert!(fungible_asset::amount(&usdt_fa) == 276404249, 1);
 
         // set dao fee when pool is locked
-        liquidity_pool::set_dao_fee<BTC, USDT, Uncorrelated>(&fee_admin, 10, fa_x_metadata, fa_y_metadata);
+        liquidity_pool::set_dao_fee<Uncorrelated>(&fee_admin, 10, fa_x_metadata, fa_y_metadata);
 
         let btc_fa_to_exchange = test_coins::mint_fa(&fa_admin, b"BTC", 1000000);
-        liquidity_pool::pay_flashloan<BTC, USDT, Uncorrelated>(btc_fa_to_exchange, fungible_asset::zero(fa_y_metadata), loan);
+        liquidity_pool::pay_flashloan<Uncorrelated>(btc_fa_to_exchange, fungible_asset::zero(fa_y_metadata), loan);
 
         fungible_asset::destroy_zero(zero);
         test_coins::burn_fa(&fa_admin, b"USDT", usdt_fa);
@@ -885,16 +885,16 @@ module liquidswap_v05::flashloan_tests {
         let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"BTC");
         let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
 
-        liquidity_pool::register<BTC, USDT, Uncorrelated>(
+        liquidity_pool::register<Uncorrelated>(
             &lp_owner,
             fa_x_metadata,
             fa_y_metadata
         );
 
         let (btc_fa, usdt_fa, loan) =
-            liquidity_pool::flashloan<USDT, BTC, Uncorrelated>(12, 34, fa_y_metadata, fa_x_metadata);
+            liquidity_pool::flashloan<Uncorrelated>(12, 34, fa_y_metadata, fa_x_metadata);
 
-        liquidity_pool::pay_flashloan<BTC, USDT, Uncorrelated>(btc_fa, usdt_fa, loan);
+        liquidity_pool::pay_flashloan<Uncorrelated>(btc_fa, usdt_fa, loan);
     }
 
     #[test]
@@ -906,10 +906,10 @@ module liquidswap_v05::flashloan_tests {
         let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
 
         let (zero, usdt_fa, loan) =
-            liquidity_pool::flashloan<BTC, USDT, Uncorrelated>(0, 276404249, fa_x_metadata, fa_y_metadata);
+            liquidity_pool::flashloan<Uncorrelated>(0, 276404249, fa_x_metadata, fa_y_metadata);
 
         let btc_fa_to_exchange = test_coins::mint_fa(&fa_admin, b"BTC", 1000000);
-        liquidity_pool::pay_flashloan<USDT, BTC, Uncorrelated>(
+        liquidity_pool::pay_flashloan<Uncorrelated>(
             fungible_asset::zero(fa_y_metadata),
             btc_fa_to_exchange,
             loan
@@ -928,7 +928,7 @@ module liquidswap_v05::flashloan_tests {
         let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
 
         let (zero, usdt_fa, loan) =
-            liquidity_pool::flashloan<BTC, USDT, Uncorrelated>(
+            liquidity_pool::flashloan<Uncorrelated>(
                 0,
                 270,
                 fa_x_metadata,
@@ -936,7 +936,7 @@ module liquidswap_v05::flashloan_tests {
             );
         assert!(fungible_asset::amount(&usdt_fa) == 270, 1);
 
-        liquidity_pool::pay_flashloan<BTC, USDT, Uncorrelated>(
+        liquidity_pool::pay_flashloan<Uncorrelated>(
             fungible_asset::zero(fa_x_metadata),
             fungible_asset::zero(fa_y_metadata),
             loan
@@ -968,10 +968,10 @@ module liquidswap_v05::flashloan_tests {
     //     let fa_x_fake_metadata = fungible_asset::mint_ref_metadata(&mint_ref);
     //     let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
     //
-    //     router::register_pool<USDC, USDT, Uncorrelated>(&fa_admin, fa_x_fake_metadata, fa_y_metadata);
+    //     router::register_pool<Uncorrelated>(&fa_admin, fa_x_fake_metadata, fa_y_metadata);
     //
     //     let (zero, usdt_fa, loan) =
-    //         liquidity_pool::flashloan<BTC, USDT, Uncorrelated>(
+    //         liquidity_pool::flashloan<Uncorrelated>(
     //             0,
     //             276404249,
     //             fa_x_real_metadata,
@@ -980,7 +980,7 @@ module liquidswap_v05::flashloan_tests {
     //     assert!(fungible_asset::amount(&usdt_fa) == 276404249, 1);
     //
     //     let btc_fa_to_exchange = test_coins::mint_fa(&fa_admin, b"BTC", 1000000);
-    //     liquidity_pool::pay_flashloan<USDC, USDT, Uncorrelated>(
+    //     liquidity_pool::pay_flashloan<Uncorrelated>(
     //         btc_fa_to_exchange,
     //         fungible_asset::zero(fa_y_metadata),
     //         loan
@@ -989,7 +989,7 @@ module liquidswap_v05::flashloan_tests {
     //     fungible_asset::destroy_zero(zero);
     //     test_coins::burn_fa(&fa_admin, b"USDT", usdt_fa);
     //
-    //     // let (x_res, y_res) = liquidity_pool::get_reserves_size<BTC, USDT, Uncorrelated>(
+    //     // let (x_res, y_res) = liquidity_pool::get_reserves_size<Uncorrelated>(
     //     //     fa_x_metadata,
     //     //     fa_y_metadata,
     //     // );

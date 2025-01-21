@@ -106,39 +106,6 @@ module liquidswap_v05::fa_helper {
         option::extract(&mut fungible_asset::supply(fa_metadata))
     }
 
-    /// Generate LP coin name and symbol for pair `X`/`Y` and curve `Curve`.
-    /// Changes for v0.5:
-    ///
-    /// ```
-    ///
-    /// (curve_name, curve_symbol) = when(curve) {
-    ///     is Uncorrelated -> ("U", "-U")
-    ///     is Stable -> ("S", "-S")
-    /// }
-    /// name = "LiquidLP-" + symbol<X>() + "-" + symbol<Y>() + curve_name;
-    /// symbol = symbol<X>()[0:4] + "-" + symbol<Y>()[0:4] + curve_symbol;
-    /// ```
-    /// For example, for `LP<BTC, USDT, Uncorrelated>`,
-    /// the result will be `(b"LiquidLP-BTC-USDT+", b"BTC-USDT+")`
-    public fun generate_lp_name_and_symbol<X, Y, Curve>(): (String, String) {
-        let lp_name = string::utf8(b"");
-        string::append_utf8(&mut lp_name, b"LS05 LP-");
-        string::append(&mut lp_name, coin::symbol<X>());
-        string::append_utf8(&mut lp_name, b"-");
-        string::append(&mut lp_name, coin::symbol<Y>());
-
-        let lp_symbol = string::utf8(b"");
-        string::append(&mut lp_symbol, coin_symbol_prefix<X>());
-        string::append_utf8(&mut lp_symbol, b"-");
-        string::append(&mut lp_symbol, coin_symbol_prefix<Y>());
-
-        let (curve_name, curve_symbol) = if (is_stable<Curve>()) (b"-S", b"S") else (b"-U", b"U");
-        string::append_utf8(&mut lp_name, curve_name);
-        string::append_utf8(&mut lp_symbol, curve_symbol);
-
-        (lp_name, lp_symbol)
-    }
-
     // todo: update description
     // todo: refactor this file after LP coin => FA transition
     /// Generate LP coin name and symbol for pair `X`/`Y` and curve `Curve`.
@@ -153,7 +120,7 @@ module liquidswap_v05::fa_helper {
     /// name = "LiquidLP-" + symbol<X>() + "-" + symbol<Y>() + curve_name;
     /// symbol = symbol<X>()[0:4] + "-" + symbol<Y>()[0:4] + curve_symbol;
     /// ```
-    /// For example, for `LP<BTC, USDT, Uncorrelated>`,
+    /// For example, for `LP<Uncorrelated>`,
     /// the result will be `(b"LiquidLP-BTC-USDT+", b"BTC-USDT+")`
     public fun fa_generate_lp_name_and_symbol<Curve>(
         x_metadata: Object<Metadata>,
@@ -199,11 +166,5 @@ module liquidswap_v05::fa_helper {
         string::append_utf8(&mut pool_obj_name, type_info::struct_name(&type_info::type_of<Curve>()));
 
         pool_obj_name
-    }
-
-    fun coin_symbol_prefix<CoinType>(): String {
-        let symbol = coin::symbol<CoinType>();
-        let prefix_length = math::min_u64(string::length(&symbol), SYMBOL_PREFIX_LENGTH);
-        string::sub_string(&symbol, 0, prefix_length)
     }
 }
