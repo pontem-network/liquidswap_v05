@@ -1,5 +1,6 @@
 #[test_only]
 module liquidswap_v05::flashloan_tests {
+    use std::option;
     use std::signer;
     use std::string;
     use aptos_framework::account;
@@ -946,62 +947,120 @@ module liquidswap_v05::flashloan_tests {
         test_coins::burn_fa(&fa_admin, b"USDT", usdt_fa);
     }
 
-    // todo: repair after LP => FA
-    // #[test]
-    // fun test_fails_if_flashloan_returned_to_another_pool() {
-    //     let (fa_admin, _) = register_pool_with_liquidity(100000000, 28000000000);
-    //
-    //     // Create pool with fake BTC.
-    //     let constructor_ref = object::create_named_object(&fa_admin, b"BTC2_FA_OBJ");
-    //     primary_fungible_store::create_primary_store_enabled_fungible_asset(
-    //         &constructor_ref,
-    //         option::none() /* max supply */,
-    //         string::utf8(b"BTC Fungible Asset"),
-    //         string::utf8(b"BTC"),
-    //         8,
-    //         string::utf8(b"http://www.example.com/favicon.ico"),
-    //         string::utf8(b"http://www.example.com"),
-    //     );
-    //     let mint_ref = fungible_asset::generate_mint_ref(&constructor_ref);
-    //
-    //     let fa_x_real_metadata = test_coins::get_fa_metadata_from_symbol(b"BTC");
-    //     let fa_x_fake_metadata = fungible_asset::mint_ref_metadata(&mint_ref);
-    //     let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
-    //
-    //     router::register_pool<Uncorrelated>(&fa_admin, fa_x_fake_metadata, fa_y_metadata);
-    //
-    //     let (zero, usdt_fa, loan) =
-    //         liquidity_pool::flashloan<Uncorrelated>(
-    //             0,
-    //             276404249,
-    //             fa_x_real_metadata,
-    //             fa_y_metadata,
-    //         );
-    //     assert!(fungible_asset::amount(&usdt_fa) == 276404249, 1);
-    //
-    //     let btc_fa_to_exchange = test_coins::mint_fa(&fa_admin, b"BTC", 1000000);
-    //     liquidity_pool::pay_flashloan<Uncorrelated>(
-    //         btc_fa_to_exchange,
-    //         fungible_asset::zero(fa_y_metadata),
-    //         loan
-    //     );
-    //
-    //     fungible_asset::destroy_zero(zero);
-    //     test_coins::burn_fa(&fa_admin, b"USDT", usdt_fa);
-    //
-    //     // let (x_res, y_res) = liquidity_pool::get_reserves_size<Uncorrelated>(
-    //     //     fa_x_metadata,
-    //     //     fa_y_metadata,
-    //     // );
-    //     // assert!(x_res == 100999000, 2);
-    //     // assert!(y_res == 27723595751, 3);
-    //
-    //     // Check pool FA stores directly.
-    //     // let pool_obj_name =
-    //     //     string::bytes(&fa_helper::create_pool_obj_name<Uncorrelated>(fa_x_metadata, fa_y_metadata));
-    //     // let pool_fa_store_res_acc_addr =
-    //     //     account::create_resource_address(&@liquidswap_pool_account, *pool_obj_name);
-    //     // assert!(primary_fungible_store::balance(pool_fa_store_res_acc_addr, fa_x_metadata) == 100999000, 4);
-    //     // assert!(primary_fungible_store::balance(pool_fa_store_res_acc_addr, fa_y_metadata) == 27723595751, 5);
-    // }
+    #[test]
+    #[expected_failure(abort_code = liquidity_pool::ERR_POOL_IS_UNLOCKED)]
+    fun test_fails_if_flashloan_returned_to_another_pool_which_is_not_locked() {
+        let (fa_admin, _) = register_pool_with_liquidity(100000000, 28000000000);
+
+        // Create pool with fake BTC.
+        let constructor_ref = object::create_named_object(&fa_admin, b"BTC2_FA_OBJ");
+        primary_fungible_store::create_primary_store_enabled_fungible_asset(
+            &constructor_ref,
+            option::none() /* max supply */,
+            string::utf8(b"BTC Fungible Asset"),
+            string::utf8(b"BTC"),
+            8,
+            string::utf8(b"http://www.example.com/favicon.ico"),
+            string::utf8(b"http://www.example.com"),
+        );
+        let mint_ref = fungible_asset::generate_mint_ref(&constructor_ref);
+
+        let fa_x_fake_metadata = fungible_asset::mint_ref_metadata(&mint_ref);
+        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+
+        // Create pool with fake BTC and add liq into.
+        router::register_pool<Uncorrelated>(&fa_admin, fa_x_fake_metadata, fa_y_metadata);
+
+        let fake_btc_fa = fungible_asset::mint(&mint_ref, 100000000);
+        let usdt_fa = test_coins::mint_fa(&fa_admin, b"USDT", 28000000000);
+        let lp_fa =
+            liquidity_pool::mint<Uncorrelated>(fake_btc_fa, usdt_fa);
+        primary_fungible_store::deposit(signer::address_of(&fa_admin), lp_fa);
+
+        // Get flashloan with from fake BTC pool.
+        let (fake_btc_fa, usdt_fa, loan) =
+            liquidity_pool::flashloan<Uncorrelated>(
+                100,
+                200,
+                fa_x_fake_metadata,
+                fa_y_metadata,
+            );
+        primary_fungible_store::deposit(signer::address_of(&fa_admin), fake_btc_fa);
+
+        // Return flashloan to real BTC pool.
+        let real_btc_fa = test_coins::mint_fa(&fa_admin, b"BTC", 1000000);
+        liquidity_pool::pay_flashloan<Uncorrelated>(
+            real_btc_fa,
+            usdt_fa,
+            loan
+        );
+    }
+
+    #[test]
+    #[expected_failure(abort_code = liquidity_pool::ERR_WRONG_POOL)]
+    fun test_fails_if_flashloan_returned_to_another_pool_which_is_locked() {
+        let (fa_admin, _) = register_pool_with_liquidity(100000000, 28000000000);
+
+        // Create pool with fake BTC.
+        let constructor_ref = object::create_named_object(&fa_admin, b"BTC2_FA_OBJ");
+        primary_fungible_store::create_primary_store_enabled_fungible_asset(
+            &constructor_ref,
+            option::none() /* max supply */,
+            string::utf8(b"BTC Fungible Asset"),
+            string::utf8(b"BTC"),
+            8,
+            string::utf8(b"http://www.example.com/favicon.ico"),
+            string::utf8(b"http://www.example.com"),
+        );
+        let mint_ref = fungible_asset::generate_mint_ref(&constructor_ref);
+
+        let fa_x_real_metadata = test_coins::get_fa_metadata_from_symbol(b"BTC");
+        let fa_x_fake_metadata = fungible_asset::mint_ref_metadata(&mint_ref);
+        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+
+        // Create pool with fake BTC and add liq into.
+        router::register_pool<Uncorrelated>(&fa_admin, fa_x_fake_metadata, fa_y_metadata);
+
+        let fake_btc_fa = fungible_asset::mint(&mint_ref, 100000000);
+        let usdt_fa = test_coins::mint_fa(&fa_admin, b"USDT", 28000000000);
+        let lp_fa =
+            liquidity_pool::mint<Uncorrelated>(fake_btc_fa, usdt_fa);
+        primary_fungible_store::deposit(signer::address_of(&fa_admin), lp_fa);
+
+        // Get flashloan from fake BTC pool.
+        let (fake_btc_fa, usdt_fa, fake_loan) =
+            liquidity_pool::flashloan<Uncorrelated>(
+                100,
+                200,
+                fa_x_fake_metadata,
+                fa_y_metadata,
+            );
+        primary_fungible_store::deposit(signer::address_of(&fa_admin), fake_btc_fa);
+
+        // Get flashloan from real BTC pool to make it locked.
+        let (real_btc_fa, usdt_fa2, real_loan) =
+            liquidity_pool::flashloan<Uncorrelated>(
+                100,
+                200,
+                fa_x_real_metadata,
+                fa_y_metadata,
+            );
+        primary_fungible_store::deposit(signer::address_of(&fa_admin), real_btc_fa);
+
+        // Return flashloan to real BTC pool. This should fail.
+        let real_btc_fa = test_coins::mint_fa(&fa_admin, b"BTC", 1000000);
+        liquidity_pool::pay_flashloan<Uncorrelated>(
+            real_btc_fa,
+            usdt_fa,
+            fake_loan,
+        );
+
+        // Real loan return. Never reached.
+        let real_btc_fa = test_coins::mint_fa(&fa_admin, b"BTC", 1000000);
+        liquidity_pool::pay_flashloan<Uncorrelated>(
+            real_btc_fa,
+            usdt_fa2,
+            real_loan,
+        );
+    }
 }

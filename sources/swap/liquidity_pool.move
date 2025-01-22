@@ -68,6 +68,9 @@ module liquidswap_v05::liquidity_pool {
     /// When user returns flashloan to wrong pool.
     const ERR_WRONG_POOL: u64 = 113;
 
+    /// When pool is unlocked, but should be locked.
+    const ERR_POOL_IS_UNLOCKED: u64 = 114;
+
     // Constants.
 
     /// Minimal liquidity.
@@ -149,7 +152,6 @@ module liquidswap_v05::liquidity_pool {
         let pool_cap = borrow_global<PoolAccountCapability>(@liquidswap_v05);
         let pool_account = account::create_signer_with_capability(&pool_cap.signer_cap);
 
-        // todo: check LP obj created
         // Creates a non-deletable object with a named address based on our LP seed.
         let pool_obj_name =
             string::bytes(&fa_helper::create_pool_obj_name<Curve>(x_metadata, y_metadata));
@@ -183,7 +185,6 @@ module liquidswap_v05::liquidity_pool {
 
         primary_fungible_store::create_primary_store(fa_res_acc_addr, x_metadata);
         primary_fungible_store::create_primary_store(fa_res_acc_addr, y_metadata);
-        // todo: check store in tests
         primary_fungible_store::create_primary_store(fa_res_acc_addr, lp_metadata);
 
         let x_scale = 0;
@@ -216,18 +217,18 @@ module liquidswap_v05::liquidity_pool {
         let pool_signer = object::generate_signer(&pool_constructor_ref);
         move_to(&pool_signer, pool);
 
-        dao_storage::register<Curve>(&pool_account, x_metadata, y_metadata);
+        dao_storage::register<Curve>(x_metadata, y_metadata);
 
         // todo: events 2 gen
         let events_store = EventsStore<Curve> {
-            pool_created_handle: account::new_event_handle(&pool_account),
-            liquidity_added_handle: account::new_event_handle(&pool_account),
-            liquidity_removed_handle: account::new_event_handle(&pool_account),
-            swap_handle: account::new_event_handle(&pool_account),
-            flashloan_handle: account::new_event_handle(&pool_account),
-            oracle_updated_handle: account::new_event_handle(&pool_account),
-            update_fee_handle: account::new_event_handle(&pool_account),
-            update_dao_fee_handle: account::new_event_handle(&pool_account),
+            pool_created_handle: account::new_event_handle(&fa_res_acc),
+            liquidity_added_handle: account::new_event_handle(&fa_res_acc),
+            liquidity_removed_handle: account::new_event_handle(&fa_res_acc),
+            swap_handle: account::new_event_handle(&fa_res_acc),
+            flashloan_handle: account::new_event_handle(&fa_res_acc),
+            oracle_updated_handle: account::new_event_handle(&fa_res_acc),
+            update_fee_handle: account::new_event_handle(&fa_res_acc),
+            update_dao_fee_handle: account::new_event_handle(&fa_res_acc),
         };
 
         event::emit_event(
@@ -238,7 +239,8 @@ module liquidswap_v05::liquidity_pool {
                 y_metadata: object::object_address(&y_metadata),
             },
         );
-        move_to(&pool_account, events_store);
+        // There is no coin generics in LiquidityPool. So have to store events for each pool at separate res account.
+        move_to(&fa_res_acc, events_store);
     }
 
     /// Mint new liquidity FA.
@@ -276,7 +278,6 @@ module liquidswap_v05::liquidity_pool {
             let initial_liq = math::sqrt(math::mul_to_u128(x_provided_val, y_provided_val));
             assert!(initial_liq > MINIMAL_LIQUIDITY, ERR_NOT_ENOUGH_INITIAL_LIQUIDITY);
 
-            // todo: check store in tests <=============
             let lp_reserved_fa =
                 fungible_asset::mint(&pool.lp_mint_ref, MINIMAL_LIQUIDITY);
             primary_fungible_store::deposit(fa_res_acc_addr, lp_reserved_fa);
@@ -301,7 +302,7 @@ module liquidswap_v05::liquidity_pool {
 
         update_oracle<Curve>(pool, x_reserve_size, y_reserve_size, x_metadata, y_metadata);
 
-        let events_store = borrow_global_mut<EventsStore<Curve>>(@liquidswap_pool_account);
+        let events_store = borrow_global_mut<EventsStore<Curve>>(fa_res_acc_addr);
         event::emit_event(
             &mut events_store.liquidity_added_handle,
             LiquidityAddedEvent<Curve> {
@@ -326,19 +327,20 @@ module liquidswap_v05::liquidity_pool {
         y_metadata: Object<Metadata>,
     ): (FungibleAsset, FungibleAsset)
     acquires LiquidityPool, PoolAccountCapability, EventsStore {
-        // todo: IMPORTANT! seems we have to check that LP's are attached to current pool. We have to test it.
-
         assert!(fa_helper::is_fa_sorted(x_metadata, y_metadata), ERR_WRONG_PAIR_ORDERING);
-        // todo: maybe store x and y FA's metadata in LP FA metadata so no need to provide metadata args when burn?
         assert!(is_pool_exists<Curve>(x_metadata, y_metadata), ERR_POOL_DOES_NOT_EXIST);
-
-        let burned_lp_fa_val = fungible_asset::amount(&lp_fa);
 
         let pool_addr = get_pool_addr<Curve>(x_metadata, y_metadata);
         let pool = borrow_global_mut<LiquidityPool<Curve>>(pool_addr);
 
+        // As LP FA don't have coin generics, it could be passed to any pool.
+        // Check that LP passed to correct pool.
+        let lp_fa_metadata = fungible_asset::metadata_from_asset(&lp_fa);
+        assert!(lp_fa_metadata == pool.lp_metadata, ERR_WRONG_POOL);
+
         assert_pool_unlocked<Curve>(pool);
 
+        let burned_lp_fa_val = fungible_asset::amount(&lp_fa);
         let lp_coins_total = fa_helper::fa_supply(pool.lp_metadata);
 
         let fa_res_acc =
@@ -363,7 +365,7 @@ module liquidswap_v05::liquidity_pool {
 
         fungible_asset::burn(&pool.lp_burn_ref, lp_fa);
 
-        let events_store = borrow_global_mut<EventsStore<Curve>>(@liquidswap_pool_account);
+        let events_store = borrow_global_mut<EventsStore<Curve>>(fa_res_acc_addr);
         event::emit_event(
             &mut events_store.liquidity_removed_handle,
             LiquidityRemovedEvent<Curve> {
@@ -448,7 +450,7 @@ module liquidswap_v05::liquidity_pool {
 
         update_oracle<Curve>(pool, x_reserve_size, y_reserve_size, x_metadata, y_metadata);
 
-        let events_store = borrow_global_mut<EventsStore<Curve>>(@liquidswap_pool_account);
+        let events_store = borrow_global_mut<EventsStore<Curve>>(fa_res_acc_addr);
         event::emit_event(
             &mut events_store.swap_handle,
             SwapEvent<Curve> {
@@ -534,7 +536,9 @@ module liquidswap_v05::liquidity_pool {
 
         let Flashloan { x_loan, y_loan, attached_pool_obj_addr } = loan;
 
-        // todo: TEST this! after LP => FA
+        // There is no coin generics in Flashloan anymore, so it could be passed to any pool.
+        // Check that loan returned to the same pool.
+        assert!(pool.locked, ERR_POOL_IS_UNLOCKED);
         assert!(pool_addr == attached_pool_obj_addr, ERR_WRONG_POOL);
 
         let x_in_val = fungible_asset::amount(&x_in);
@@ -585,7 +589,7 @@ module liquidswap_v05::liquidity_pool {
         // The pool will be unlocked after payment.
         pool.locked = false;
 
-        let events_store = borrow_global_mut<EventsStore<Curve>>(@liquidswap_pool_account);
+        let events_store = borrow_global_mut<EventsStore<Curve>>(fa_res_acc_addr);
         event::emit_event(
             &mut events_store.flashloan_handle,
             FlashloanEvent<Curve> {
@@ -662,7 +666,7 @@ module liquidswap_v05::liquidity_pool {
         let dao_x_in = primary_fungible_store::withdraw(fa_res_acc, x_metadata, dao_x_fee_val);
         let dao_y_in = primary_fungible_store::withdraw(fa_res_acc, y_metadata, dao_y_fee_val);
 
-        dao_storage::deposit<Curve>(@liquidswap_pool_account, dao_x_in, dao_y_in);
+        dao_storage::deposit<Curve>(dao_x_in, dao_y_in);
     }
 
     /// Compute and verify LP value after and before swap, in nutshell, _k function.
@@ -725,7 +729,9 @@ module liquidswap_v05::liquidity_pool {
             pool.last_price_x_cumulative = math::overflow_add(pool.last_price_x_cumulative, last_price_x_cumulative);
             pool.last_price_y_cumulative = math::overflow_add(pool.last_price_y_cumulative, last_price_y_cumulative);
 
-            let events_store = borrow_global_mut<EventsStore<Curve>>(@liquidswap_pool_account);
+            let fa_res_acc_addr =
+                account::get_signer_capability_address(&pool.fa_signer_cap);
+            let events_store = borrow_global_mut<EventsStore<Curve>>(fa_res_acc_addr);
             event::emit_event(
                 &mut events_store.oracle_updated_handle,
                 OracleUpdatedEvent<Curve> {
@@ -901,7 +907,10 @@ module liquidswap_v05::liquidity_pool {
 
         pool.fee = fee;
 
-        let events_store = borrow_global_mut<EventsStore<Curve>>(@liquidswap_pool_account);
+
+        let fa_res_acc_addr =
+            account::get_signer_capability_address(&pool.fa_signer_cap);
+        let events_store = borrow_global_mut<EventsStore<Curve>>(fa_res_acc_addr);
         event::emit_event(
             &mut events_store.update_fee_handle,
             UpdateFeeEvent<Curve> {
@@ -964,7 +973,9 @@ module liquidswap_v05::liquidity_pool {
 
         pool.dao_fee = dao_fee;
 
-        let events_store = borrow_global_mut<EventsStore<Curve>>(@liquidswap_pool_account);
+        let fa_res_acc_addr =
+            account::get_signer_capability_address(&pool.fa_signer_cap);
+        let events_store = borrow_global_mut<EventsStore<Curve>>(fa_res_acc_addr);
         event::emit_event(
             &mut events_store.update_dao_fee_handle,
             UpdateDAOFeeEvent<Curve> {
@@ -991,7 +1002,6 @@ module liquidswap_v05::liquidity_pool {
     }
 
     #[view]
-    // todo: add test before and after liq add
     /// Returns LP supply of given pool.
     /// * `x_metadata` - metadata object of FungibleAsset X.
     /// * `y_metadata` - metadata object of FungibleAsset Y.
@@ -1006,7 +1016,6 @@ module liquidswap_v05::liquidity_pool {
     }
 
     #[view]
-    // todo: add test
     /// Returns LP Metadata object of given pool.
     /// * `x_metadata` - metadata object of FungibleAsset X.
     /// * `y_metadata` - metadata object of FungibleAsset Y.

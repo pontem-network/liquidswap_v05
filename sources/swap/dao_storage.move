@@ -50,11 +50,9 @@ module liquidswap_v05::dao_storage {
 
     /// Register storage
     /// Parameters:
-    /// * `owner` - owner of storage.
     /// * `x_metadata` - metadata object of FungibleAsset X.
     /// * `y_metadata` - metadata object of FungibleAsset Y.
     public(friend) fun register<Curve>(
-        owner: &signer,
         x_metadata: Object<Metadata>,
         y_metadata: Object<Metadata>,
     ) acquires StoreObjectsCreatorCap {
@@ -77,9 +75,9 @@ module liquidswap_v05::dao_storage {
         primary_fungible_store::create_primary_store(fa_res_acc_addr, y_metadata);
 
         let events_store = EventsStore<Curve> {
-            storage_registered_handle: account::new_event_handle(owner),
-            coin_deposited_handle: account::new_event_handle(owner),
-            coin_withdrawn_handle: account::new_event_handle(owner)
+            storage_registered_handle: account::new_event_handle(&fa_res_acc),
+            coin_deposited_handle: account::new_event_handle(&fa_res_acc),
+            coin_withdrawn_handle: account::new_event_handle(&fa_res_acc)
         };
 
         // todo: gen 2 events?
@@ -91,16 +89,16 @@ module liquidswap_v05::dao_storage {
             }
         );
 
-        move_to(owner, events_store);
+        // There is no coin generics for DAO assets storage.
+        // So have to store DAO events for each pool at separate res account.
+        move_to(&fa_res_acc, events_store);
     }
 
     /// Deposit FA's to storage from liquidity pool
     /// Parameters:
-    /// * `pool_addr` - pool owner address.
     /// * `fa_x` - X FA to deposit.
     /// * `fa_y` - Y FA to deposit.
     public(friend) fun deposit<Curve>(
-        pool_addr: address,
         fa_x: FungibleAsset,
         fa_y: FungibleAsset,
     ) acquires StoreObjectsCreatorCap, FungibleStoreSigner, EventsStore {
@@ -126,7 +124,7 @@ module liquidswap_v05::dao_storage {
         primary_fungible_store::deposit(fa_res_acc_addr, fa_x);
         primary_fungible_store::deposit(fa_res_acc_addr, fa_y);
 
-        let events_store = borrow_global_mut<EventsStore<Curve>>(pool_addr);
+        let events_store = borrow_global_mut<EventsStore<Curve>>(fa_res_acc_addr);
         event::emit_event(
             &mut events_store.coin_deposited_handle,
             CoinDepositedEvent<Curve> {
@@ -141,7 +139,6 @@ module liquidswap_v05::dao_storage {
     /// Withdraw FA's from storage
     /// Parameters:
     /// * `dao_admin_acc` - DAO admin.
-    /// * `pool_addr` - pool owner address.
     /// * `x_val` - amount of X FA to withdraw.
     /// * `y_val` - amount of Y FA to withdraw.
     /// * `x_metadata` - metadata object of FungibleAsset X.
@@ -149,7 +146,6 @@ module liquidswap_v05::dao_storage {
     /// Returns both withdrawn X and Y FA's: `(FungibleAsset, FungibleAsset)`.
     public fun withdraw<Curve>(
         dao_admin_acc: &signer,
-        pool_addr: address,
         x_val: u64,
         y_val: u64,
         x_metadata: Object<Metadata>,
@@ -170,7 +166,8 @@ module liquidswap_v05::dao_storage {
         let fa_x = primary_fungible_store::withdraw(fa_res_acc, x_metadata, x_val);
         let fa_y = primary_fungible_store::withdraw(fa_res_acc, y_metadata, y_val);
 
-        let events_store = borrow_global_mut<EventsStore<Curve>>(pool_addr);
+        let fa_res_acc_addr = signer::address_of(fa_res_acc);
+        let events_store = borrow_global_mut<EventsStore<Curve>>(fa_res_acc_addr);
         event::emit_event(
             &mut events_store.coin_withdrawn_handle,
             CoinWithdrawnEvent<Curve> {
@@ -223,20 +220,18 @@ module liquidswap_v05::dao_storage {
 
     #[test_only]
     public fun register_for_test<Curve>(
-        owner: &signer,
         x_metadata: Object<Metadata>,
         y_metadata: Object<Metadata>
     ) acquires StoreObjectsCreatorCap {
-        register<Curve>(owner, x_metadata, y_metadata);
+        register<Curve>(x_metadata, y_metadata);
     }
 
     #[test_only]
     public fun deposit_for_test<Curve>(
-        pool_addr: address,
         fa_x: FungibleAsset,
         fa_y: FungibleAsset,
     ) acquires StoreObjectsCreatorCap, FungibleStoreSigner, EventsStore {
-        deposit<Curve>(pool_addr, fa_x, fa_y);
+        deposit<Curve>(fa_x, fa_y);
     }
 
     // Events

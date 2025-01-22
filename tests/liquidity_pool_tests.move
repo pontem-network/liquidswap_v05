@@ -102,49 +102,63 @@ module liquidswap_v05::liquidity_pool_tests {
         let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
 
         // Check no object before pool creation
-        assert!(!liquidity_pool::is_pool_exists<Uncorrelated>(fa_x_metadata, fa_y_metadata), 9);
+        assert!(!liquidity_pool::is_pool_exists<Uncorrelated>(fa_x_metadata, fa_y_metadata), 1);
 
         liquidity_pool::register<Uncorrelated>(&lp_owner, fa_x_metadata, fa_y_metadata);
 
+        // Check LP FA obj created and cannot be transfered.
         let pool_obj_name =
             string::bytes(&fa_helper::create_pool_obj_name<Uncorrelated>(fa_x_metadata, fa_y_metadata));
+        let lp_fa_obj_seed = string::utf8(*pool_obj_name);
+        string::append_utf8( &mut lp_fa_obj_seed, b"-LP");
+        let lp_fa_obj_addr =
+            object::create_object_address(&@liquidswap_pool_account, *string::bytes(&lp_fa_obj_seed));
+        let lp_fa_obj = object::address_to_object<Metadata>(lp_fa_obj_addr);
+        assert!(object::object_exists<Metadata>(lp_fa_obj_addr), 2);
+        assert!(object::is_untransferable(lp_fa_obj), 3);
+
+        // Check LP FA store created.
         let fa_res_acc_addr =
             account::create_resource_address(&@liquidswap_pool_account,*pool_obj_name);
         let lp_metadata =
             get_lp_fa_metadata_from_x_y_metadatas<Uncorrelated>(fa_x_metadata, fa_y_metadata);
+        assert!(primary_fungible_store::primary_store_exists(fa_res_acc_addr, lp_metadata), 4);
 
-        assert!(liquidity_pool::is_pool_exists<Uncorrelated>(fa_x_metadata, fa_y_metadata), 10);
-        assert!(primary_fungible_store::primary_store_exists(fa_res_acc_addr, lp_metadata), 11);
+        // Check pool stores correct LP metadata address.
+        assert!(liquidity_pool::get_pool_lp_metadata<Uncorrelated>(fa_x_metadata, fa_y_metadata) == lp_metadata, 5);
+
+        // Check pool exists with getter.
+        assert!(liquidity_pool::is_pool_exists<Uncorrelated>(fa_x_metadata, fa_y_metadata), 6);
 
         let (x_res_val, y_res_val) =
             liquidity_pool::get_reserves_size<Uncorrelated>(fa_x_metadata, fa_y_metadata);
-        assert!(x_res_val == 0, 13);
-        assert!(y_res_val == 0, 14);
+        assert!(x_res_val == 0, 7);
+        assert!(y_res_val == 0, 8);
 
         let (x_price, y_price, _) =
             liquidity_pool::get_cumulative_prices<Uncorrelated>(fa_x_metadata, fa_y_metadata);
-        assert!(x_price == 0, 15);
-        assert!(y_price == 0, 16);
+        assert!(x_price == 0, 9);
+        assert!(y_price == 0, 10);
 
         // todo: recheck LP
         // Check created LP.
         let lp_name = fungible_asset::name(lp_metadata);
-        assert!(lp_name == utf8(b"LS05 LP-BTC-USDT-U"), 18);
+        assert!(lp_name == utf8(b"LS05 LP-BTC-USDT-U"), 11);
         let lp_symbol = fungible_asset::symbol(lp_metadata);
-        assert!(lp_symbol == utf8(b"BTC-USDTU"), 19);
+        assert!(lp_symbol == utf8(b"BTC-USDTU"), 12);
         let lp_supply = fungible_asset::supply(lp_metadata);
-        assert!(option::is_some(&lp_supply), 20);
-        assert!(*option::borrow(&lp_supply) == 0, 21);
+        assert!(option::is_some(&lp_supply), 13);
+        assert!(*option::borrow(&lp_supply) == 0, 14);
 
         // Check cumulative prices.
         let (x_cum_price, y_cum_price, ts) =
             liquidity_pool::get_cumulative_prices<Uncorrelated>(fa_x_metadata, fa_y_metadata);
-        assert!(x_cum_price == 0, 22);
-        assert!(y_cum_price == 0, 23);
-        assert!(ts == 0, 24);
+        assert!(x_cum_price == 0, 15);
+        assert!(y_cum_price == 0, 16);
+        assert!(ts == 0, 17);
 
         // Check if it's locked.
-        assert!(!liquidity_pool::is_pool_locked<Uncorrelated>(fa_x_metadata, fa_y_metadata), 25);
+        assert!(!liquidity_pool::is_pool_locked<Uncorrelated>(fa_x_metadata, fa_y_metadata), 18);
 
         // Check DAO stores initialized correctly.
         let storage_creator_addr =
@@ -154,25 +168,25 @@ module liquidswap_v05::liquidity_pool_tests {
         let fa_res_acc_addr =
             account::create_resource_address(&storage_creator_addr, *string::bytes(&storage_seed));
 
-        assert!(primary_fungible_store::primary_store_exists(fa_res_acc_addr, fa_x_metadata), 26);
-        assert!(primary_fungible_store::primary_store_exists(fa_res_acc_addr, fa_y_metadata), 27);
+        assert!(primary_fungible_store::primary_store_exists(fa_res_acc_addr, fa_x_metadata), 19);
+        assert!(primary_fungible_store::primary_store_exists(fa_res_acc_addr, fa_y_metadata), 20);
 
         // Check pool object created.
         let pool_obj_name =
             string::bytes(&fa_helper::create_pool_obj_name<Uncorrelated>(fa_x_metadata, fa_y_metadata));
         let pool_obj_addr =
             object::create_object_address(&@liquidswap_pool_account, *pool_obj_name);
-        assert!(object::object_exists<LiquidityPool<Uncorrelated>>(pool_obj_addr), 28);
+        assert!(object::object_exists<LiquidityPool<Uncorrelated>>(pool_obj_addr), 21);
         let pool_obj =
             object::address_to_object<LiquidityPool<Uncorrelated>>(pool_obj_addr);
-        assert!(object::owner(pool_obj) == @liquidswap_pool_account, 29);
-        assert!(object::is_untransferable(pool_obj), 30);
+        assert!(object::owner(pool_obj) == @liquidswap_pool_account, 22);
+        assert!(object::is_untransferable(pool_obj), 23);
 
         // Check pool FA stores created.
         let pool_fa_store_res_acc_addr =
             account::create_resource_address(&@liquidswap_pool_account, *pool_obj_name);
-        assert!(primary_fungible_store::primary_store_exists(pool_fa_store_res_acc_addr, fa_x_metadata), 31);
-        assert!(primary_fungible_store::primary_store_exists(pool_fa_store_res_acc_addr, fa_y_metadata), 32);
+        assert!(primary_fungible_store::primary_store_exists(pool_fa_store_res_acc_addr, fa_x_metadata), 24);
+        assert!(primary_fungible_store::primary_store_exists(pool_fa_store_res_acc_addr, fa_y_metadata), 25);
     }
 
     #[test(emergency_acc = @emergency_admin)]
@@ -475,50 +489,47 @@ module liquidswap_v05::liquidity_pool_tests {
             account::create_resource_address(&@liquidswap_v05, b"dao_fa_store_sig_cap_seed");
         let storage_seed_u =
             dao_storage::create_fa_storage_seed<Uncorrelated>(fa_x_metadata, fa_y_metadata);
-        let fa_res_acc_addr_u =
+        let fa_dao_res_acc_addr_u =
             account::create_resource_address(&storage_creator_addr, *string::bytes(&storage_seed_u));
         let storage_seed_s =
             dao_storage::create_fa_storage_seed<Stable>(fa_x_metadata, fa_y_metadata);
-        let fa_res_acc_addr_s =
+        let fa_dao_res_acc_addr_s =
             account::create_resource_address(&storage_creator_addr, *string::bytes(&storage_seed_s));
 
         // Check seeds and res accs are differ for diff curves.
         assert!(storage_seed_u != storage_seed_s, 35);
-        assert!(fa_res_acc_addr_u != fa_res_acc_addr_s, 36);
+        assert!(fa_dao_res_acc_addr_u != fa_dao_res_acc_addr_s, 36);
 
         // Check FA DAO stores has diff addresses.
         let fa_x_store_addr_u =
-            primary_fungible_store::primary_store_address(fa_res_acc_addr_u, fa_x_metadata);
+            primary_fungible_store::primary_store_address(fa_dao_res_acc_addr_u, fa_x_metadata);
         let fa_y_store_addr_u =
-            primary_fungible_store::primary_store_address(fa_res_acc_addr_u, fa_y_metadata);
+            primary_fungible_store::primary_store_address(fa_dao_res_acc_addr_u, fa_y_metadata);
         let fa_x_store_addr_s =
-            primary_fungible_store::primary_store_address(fa_res_acc_addr_s, fa_x_metadata);
+            primary_fungible_store::primary_store_address(fa_dao_res_acc_addr_s, fa_x_metadata);
         let fa_y_store_addr_s =
-            primary_fungible_store::primary_store_address(fa_res_acc_addr_s, fa_y_metadata);
+            primary_fungible_store::primary_store_address(fa_dao_res_acc_addr_s, fa_y_metadata);
         assert!(fa_x_store_addr_u != fa_x_store_addr_s, 37);
         assert!(fa_y_store_addr_u != fa_y_store_addr_s, 38);
 
-        assert!(primary_fungible_store::primary_store_exists(fa_res_acc_addr_u, fa_x_metadata), 39);
-        assert!(primary_fungible_store::primary_store_exists(fa_res_acc_addr_u, fa_y_metadata), 40);
-        assert!(primary_fungible_store::primary_store_exists(fa_res_acc_addr_s, fa_x_metadata), 41);
-        assert!(primary_fungible_store::primary_store_exists(fa_res_acc_addr_s, fa_y_metadata), 42);
+        assert!(primary_fungible_store::primary_store_exists(fa_dao_res_acc_addr_u, fa_x_metadata), 39);
+        assert!(primary_fungible_store::primary_store_exists(fa_dao_res_acc_addr_u, fa_y_metadata), 40);
+        assert!(primary_fungible_store::primary_store_exists(fa_dao_res_acc_addr_s, fa_x_metadata), 41);
+        assert!(primary_fungible_store::primary_store_exists(fa_dao_res_acc_addr_s, fa_y_metadata), 42);
 
         // Check pool objects created.
-        let pool_obj_name_u =
-            string::bytes(&fa_helper::create_pool_obj_name<Uncorrelated>(fa_x_metadata, fa_y_metadata));
         let pool_obj_addr_u =
             object::create_object_address(&@liquidswap_pool_account, *pool_obj_name_u);
         assert!(object::object_exists<LiquidityPool<Uncorrelated>>(pool_obj_addr_u), 43);
-
-        let pool_obj_name_s =
-            string::bytes(&fa_helper::create_pool_obj_name<Stable>(fa_x_metadata, fa_y_metadata));
         let pool_obj_addr_s =
             object::create_object_address(&@liquidswap_pool_account, *pool_obj_name_s);
         assert!(object::object_exists<LiquidityPool<Stable>>(pool_obj_addr_s), 44);
 
+        // Check pool object addresses and names are different.
         assert!(pool_obj_name_u != pool_obj_name_s, 45);
         assert!(pool_obj_addr_u != pool_obj_addr_s, 46);
 
+        // Check pool objects owners and is_untransferable is on.
         let pool_obj_u =
             object::address_to_object<LiquidityPool<Uncorrelated>>(pool_obj_addr_u);
         assert!(object::owner(pool_obj_u) == @liquidswap_pool_account, 47);
@@ -550,6 +561,273 @@ module liquidswap_v05::liquidity_pool_tests {
         assert!(primary_fungible_store::primary_store_exists(pool_fa_store_res_acc_addr_u, fa_y_metadata), 54);
         assert!(primary_fungible_store::primary_store_exists(pool_fa_store_res_acc_addr_s, fa_x_metadata), 55);
         assert!(primary_fungible_store::primary_store_exists(pool_fa_store_res_acc_addr_s, fa_y_metadata), 56);
+
+        // Check LP objects created.
+        let lp_fa_obj_seed_u = string::utf8(*pool_obj_name_u);
+        string::append_utf8( &mut lp_fa_obj_seed_u, b"-LP");
+        let lp_fa_obj_addr_u =
+            object::create_object_address(&@liquidswap_pool_account, *string::bytes(&lp_fa_obj_seed_u));
+        let lp_fa_obj_u = object::address_to_object<Metadata>(lp_fa_obj_addr_u);
+        assert!(object::object_exists<Metadata>(lp_fa_obj_addr_u), 57);
+        assert!(object::is_untransferable(lp_fa_obj_u), 58);
+
+        let lp_fa_obj_seed_s = string::utf8(*pool_obj_name_s);
+        string::append_utf8( &mut lp_fa_obj_seed_s, b"-LP");
+        let lp_fa_obj_addr_s =
+            object::create_object_address(&@liquidswap_pool_account, *string::bytes(&lp_fa_obj_seed_s));
+        let lp_fa_obj_s = object::address_to_object<Metadata>(lp_fa_obj_addr_s);
+        assert!(object::object_exists<Metadata>(lp_fa_obj_addr_s), 59);
+        assert!(object::is_untransferable(lp_fa_obj_s), 60);
+
+        // Check LP objects differ.
+        assert!(lp_fa_obj_seed_u != lp_fa_obj_seed_s, 61);
+        assert!(lp_fa_obj_addr_u != lp_fa_obj_addr_s, 62);
+
+        // Check LP FA stores created.
+        let fa_res_acc_addr_u =
+            account::create_resource_address(&@liquidswap_pool_account,*pool_obj_name_u);
+        let lp_metadata_u =
+            get_lp_fa_metadata_from_x_y_metadatas<Uncorrelated>(fa_x_metadata, fa_y_metadata);
+        assert!(primary_fungible_store::primary_store_exists(fa_res_acc_addr_u, lp_metadata_u), 63);
+
+        let fa_res_acc_addr_s =
+            account::create_resource_address(&@liquidswap_pool_account,*pool_obj_name_s);
+        let lp_metadata_s =
+            get_lp_fa_metadata_from_x_y_metadatas<Stable>(fa_x_metadata, fa_y_metadata);
+        assert!(primary_fungible_store::primary_store_exists(fa_res_acc_addr_s, lp_metadata_s), 64);
+
+        // Check LP FA stores are different.
+        assert!(lp_metadata_u != lp_metadata_s, 65);
+
+        // Check pools store correct LP metadata addresses.
+        assert!(liquidity_pool::get_pool_lp_metadata<Uncorrelated>(fa_x_metadata, fa_y_metadata) == lp_metadata_u, 66);
+        assert!(liquidity_pool::get_pool_lp_metadata<Stable>(fa_x_metadata, fa_y_metadata) == lp_metadata_s, 67);
+    }
+
+    #[test]
+    fun test_create_two_pools_same_symbols_same_curves() {
+        let (fa_admin, lp_owner) = test_pool::setup_fa_and_lp_owner();
+
+        let constructor_ref = object::create_named_object(&fa_admin, b"FAKE_BTC_FA_OBJ");
+        primary_fungible_store::create_primary_store_enabled_fungible_asset(
+            &constructor_ref,
+            option::none() /* max supply */,
+            string::utf8(b"BTC Fungible Asset"),
+            string::utf8(b"BTC"),
+            8,
+            string::utf8(b"http://www.example.com/favicon.ico"),
+            string::utf8(b"http://www.example.com"),
+        );
+        let mint_ref = fungible_asset::generate_mint_ref(&constructor_ref);
+
+        let fa_x_fake_metadata = fungible_asset::mint_ref_metadata(&mint_ref);
+        let fa_x_real_metadata = test_coins::get_fa_metadata_from_symbol(b"BTC");
+        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+
+        // Check no objects before pool creation
+        assert!(!liquidity_pool::is_pool_exists<Uncorrelated>(fa_x_fake_metadata, fa_y_metadata), 1);
+        assert!(!liquidity_pool::is_pool_exists<Uncorrelated>(fa_x_real_metadata, fa_y_metadata), 2);
+
+        liquidity_pool::register<Uncorrelated>(&lp_owner, fa_x_fake_metadata, fa_y_metadata);
+        liquidity_pool::register<Uncorrelated>(&lp_owner, fa_x_real_metadata, fa_y_metadata);
+
+        assert!(liquidity_pool::is_pool_exists<Uncorrelated>(fa_x_fake_metadata, fa_y_metadata), 3);
+        assert!(liquidity_pool::is_pool_exists<Uncorrelated>(fa_x_real_metadata, fa_y_metadata), 4);
+
+        let lp_metadata_f =
+            get_lp_fa_metadata_from_x_y_metadatas<Uncorrelated>(fa_x_fake_metadata, fa_y_metadata);
+        let pool_obj_name_f =
+            string::bytes(&fa_helper::create_pool_obj_name<Uncorrelated>(fa_x_fake_metadata, fa_y_metadata));
+        let fa_res_acc_addr_f =
+            account::create_resource_address(&@liquidswap_pool_account,*pool_obj_name_f);
+        assert!(primary_fungible_store::primary_store_exists(fa_res_acc_addr_f, lp_metadata_f), 5);
+        assert!(!object::object_exists<Metadata>(
+            get_lp_fa_metadata_obj_addr_from_x_y_metadatas<Uncorrelated>(fa_y_metadata, fa_x_fake_metadata)), 6);
+
+        let lp_metadata_r =
+            get_lp_fa_metadata_from_x_y_metadatas<Uncorrelated>(fa_x_real_metadata, fa_y_metadata);
+        let pool_obj_name_r =
+            string::bytes(&fa_helper::create_pool_obj_name<Uncorrelated>(fa_x_real_metadata, fa_y_metadata));
+        let fa_res_acc_addr_r =
+            account::create_resource_address(&@liquidswap_pool_account,*pool_obj_name_r);
+        assert!(primary_fungible_store::primary_store_exists(fa_res_acc_addr_r, lp_metadata_r), 7);
+        assert!(!object::object_exists<Metadata>(
+            get_lp_fa_metadata_obj_addr_from_x_y_metadatas<Uncorrelated>(fa_y_metadata, fa_x_real_metadata)), 8);
+
+        let (x_res_val, y_res_val) =
+            liquidity_pool::get_reserves_size<Uncorrelated>(fa_x_fake_metadata, fa_y_metadata);
+        assert!(x_res_val == 0, 9);
+        assert!(y_res_val == 0, 10);
+        let (x_res_val, y_res_val) =
+            liquidity_pool::get_reserves_size<Uncorrelated>(fa_x_real_metadata, fa_y_metadata);
+        assert!(x_res_val == 0, 11);
+        assert!(y_res_val == 0, 12);
+
+        let (x_price, y_price, _) =
+            liquidity_pool::get_cumulative_prices<Uncorrelated>(fa_x_fake_metadata, fa_y_metadata);
+        assert!(x_price == 0, 13);
+        assert!(y_price == 0, 14);
+        let (x_price, y_price, _) =
+            liquidity_pool::get_cumulative_prices<Uncorrelated>(fa_x_real_metadata, fa_y_metadata);
+        assert!(x_price == 0, 15);
+        assert!(y_price == 0, 16);
+
+        // Check fake btc pool LP created.
+        assert!(primary_fungible_store::primary_store_exists(fa_res_acc_addr_f, lp_metadata_f), 17);
+        // todo: recheck LP
+        let lp_name = fungible_asset::name(lp_metadata_f);
+        assert!(lp_name == utf8(b"LS05 LP-BTC-USDT-U"), 18);
+        let lp_symbol = fungible_asset::symbol(lp_metadata_f);
+        assert!(lp_symbol == utf8(b"BTC-USDTU"), 19);
+        let lp_supply = fungible_asset::supply(lp_metadata_f);
+        assert!(option::is_some(&lp_supply), 20);
+        assert!(*option::borrow(&lp_supply) == 0, 21);
+
+        // Check real btc pool LP created.
+        assert!(primary_fungible_store::primary_store_exists(fa_res_acc_addr_r, lp_metadata_r), 22);
+        // todo: recheck LP
+        let lp_name = fungible_asset::name(lp_metadata_r);
+        assert!(lp_name == utf8(b"LS05 LP-BTC-USDT-U"), 23);
+        let lp_symbol = fungible_asset::symbol(lp_metadata_r);
+        assert!(lp_symbol == utf8(b"BTC-USDTU"), 24);
+        let lp_supply = fungible_asset::supply(lp_metadata_r);
+        assert!(option::is_some(&lp_supply), 25);
+        assert!(*option::borrow(&lp_supply) == 0, 26);
+
+        // Check cumulative prices.
+        let (x_cum_price, y_cum_price, ts) =
+            liquidity_pool::get_cumulative_prices<Uncorrelated>(fa_x_fake_metadata, fa_y_metadata);
+        assert!(x_cum_price == 0, 27);
+        assert!(y_cum_price == 0, 28);
+        assert!(ts == 0, 29);
+        let (x_cum_price, y_cum_price, ts) =
+            liquidity_pool::get_cumulative_prices<Uncorrelated>(fa_x_real_metadata, fa_y_metadata);
+        assert!(x_cum_price == 0, 30);
+        assert!(y_cum_price == 0, 31);
+        assert!(ts == 0, 32);
+
+        // Check if it's locked.
+        assert!(!liquidity_pool::is_pool_locked<Uncorrelated>(fa_x_fake_metadata, fa_y_metadata), 33);
+        assert!(!liquidity_pool::is_pool_locked<Uncorrelated>(fa_x_real_metadata, fa_y_metadata), 34);
+
+        // Check DAO stores initialized correctly.
+        let storage_creator_addr =
+            account::create_resource_address(&@liquidswap_v05, b"dao_fa_store_sig_cap_seed");
+        let storage_seed_f =
+            dao_storage::create_fa_storage_seed<Uncorrelated>(fa_x_fake_metadata, fa_y_metadata);
+        let fa_dao_res_acc_addr_f =
+            account::create_resource_address(&storage_creator_addr, *string::bytes(&storage_seed_f));
+        let storage_seed_r =
+            dao_storage::create_fa_storage_seed<Uncorrelated>(fa_x_real_metadata, fa_y_metadata);
+        let fa_dao_res_acc_addr_r =
+            account::create_resource_address(&storage_creator_addr, *string::bytes(&storage_seed_r));
+
+        // Check seeds and res accs are differ for diff curves.
+        assert!(storage_seed_f != storage_seed_r, 35);
+        assert!(fa_dao_res_acc_addr_f != fa_dao_res_acc_addr_r, 36);
+
+        // Check FA DAO stores has diff addresses.
+        let fa_x_store_addr_f =
+            primary_fungible_store::primary_store_address(fa_dao_res_acc_addr_f, fa_x_fake_metadata);
+        let fa_y_store_addr_f =
+            primary_fungible_store::primary_store_address(fa_dao_res_acc_addr_f, fa_y_metadata);
+        let fa_x_store_addr_r =
+            primary_fungible_store::primary_store_address(fa_dao_res_acc_addr_r, fa_x_real_metadata);
+        let fa_y_store_addr_r =
+            primary_fungible_store::primary_store_address(fa_dao_res_acc_addr_r, fa_y_metadata);
+        assert!(fa_x_store_addr_f != fa_x_store_addr_r, 37);
+        assert!(fa_y_store_addr_f!= fa_y_store_addr_r, 38);
+
+        assert!(primary_fungible_store::primary_store_exists(fa_dao_res_acc_addr_f, fa_x_fake_metadata), 39);
+        assert!(primary_fungible_store::primary_store_exists(fa_dao_res_acc_addr_f, fa_y_metadata), 40);
+        assert!(primary_fungible_store::primary_store_exists(fa_dao_res_acc_addr_r, fa_x_real_metadata), 41);
+        assert!(primary_fungible_store::primary_store_exists(fa_dao_res_acc_addr_r, fa_y_metadata), 42);
+
+        // Check pool objects created.
+        let pool_obj_addr_f =
+            object::create_object_address(&@liquidswap_pool_account, *pool_obj_name_f);
+        assert!(object::object_exists<LiquidityPool<Uncorrelated>>(pool_obj_addr_f), 43);
+        let pool_obj_addr_r =
+            object::create_object_address(&@liquidswap_pool_account, *pool_obj_name_r);
+        assert!(object::object_exists<LiquidityPool<Uncorrelated>>(pool_obj_addr_r), 44);
+
+        // Check pool object addresses and names are different.
+        assert!(pool_obj_name_f != pool_obj_name_r, 45);
+        assert!(pool_obj_addr_f != pool_obj_addr_r, 46);
+
+        // Check pool objects owners and is_untransferable is on.
+        let pool_obj_f =
+            object::address_to_object<LiquidityPool<Uncorrelated>>(pool_obj_addr_f);
+        assert!(object::owner(pool_obj_f) == @liquidswap_pool_account, 47);
+        assert!(object::is_untransferable(pool_obj_f), 4);
+        let pool_obj_r =
+            object::address_to_object<LiquidityPool<Uncorrelated>>(pool_obj_addr_r);
+        assert!(object::owner(pool_obj_r) == @liquidswap_pool_account, 49);
+        assert!(object::is_untransferable(pool_obj_r), 50);
+
+        // Check pool FA stores created.
+        let pool_fa_store_res_acc_addr_f =
+            account::create_resource_address(&@liquidswap_pool_account, *pool_obj_name_f);
+        let pool_fa_store_res_acc_addr_r =
+            account::create_resource_address(&@liquidswap_pool_account, *pool_obj_name_r);
+
+        // Check pools FA stores has diff addrs.
+        let fa_x_pool_store_addr_f =
+            primary_fungible_store::primary_store_address(pool_fa_store_res_acc_addr_f, fa_x_fake_metadata);
+        let fa_y_pool_store_addr_f =
+            primary_fungible_store::primary_store_address(pool_fa_store_res_acc_addr_f, fa_y_metadata);
+        let fa_x_pool_store_addr_r =
+            primary_fungible_store::primary_store_address(pool_fa_store_res_acc_addr_r, fa_x_real_metadata);
+        let fa_y_pool_store_addr_r =
+            primary_fungible_store::primary_store_address(pool_fa_store_res_acc_addr_r, fa_y_metadata);
+        assert!(fa_x_pool_store_addr_f != fa_x_pool_store_addr_r, 51);
+        assert!(fa_y_pool_store_addr_f != fa_y_pool_store_addr_r, 52);
+
+        assert!(primary_fungible_store::primary_store_exists(pool_fa_store_res_acc_addr_f, fa_x_fake_metadata), 53);
+        assert!(primary_fungible_store::primary_store_exists(pool_fa_store_res_acc_addr_f, fa_y_metadata), 54);
+        assert!(primary_fungible_store::primary_store_exists(pool_fa_store_res_acc_addr_r, fa_x_real_metadata), 55);
+        assert!(primary_fungible_store::primary_store_exists(pool_fa_store_res_acc_addr_r, fa_y_metadata), 56);
+
+        // Check LP objects created.
+        let lp_fa_obj_seed_f = string::utf8(*pool_obj_name_f);
+        string::append_utf8( &mut lp_fa_obj_seed_f, b"-LP");
+        let lp_fa_obj_addr_f =
+            object::create_object_address(&@liquidswap_pool_account, *string::bytes(&lp_fa_obj_seed_f));
+        let lp_fa_obj_f = object::address_to_object<Metadata>(lp_fa_obj_addr_f);
+        assert!(object::object_exists<Metadata>(lp_fa_obj_addr_f), 57);
+        assert!(object::is_untransferable(lp_fa_obj_f), 58);
+
+        let lp_fa_obj_seed_r = string::utf8(*pool_obj_name_r);
+        string::append_utf8( &mut lp_fa_obj_seed_r, b"-LP");
+        let lp_fa_obj_addr_r =
+            object::create_object_address(&@liquidswap_pool_account, *string::bytes(&lp_fa_obj_seed_r));
+        let lp_fa_obj_r = object::address_to_object<Metadata>(lp_fa_obj_addr_r);
+        assert!(object::object_exists<Metadata>(lp_fa_obj_addr_r), 59);
+        assert!(object::is_untransferable(lp_fa_obj_r), 60);
+
+        // Check LP objects differ.
+        assert!(lp_fa_obj_seed_f != lp_fa_obj_seed_r, 61);
+        assert!(lp_fa_obj_addr_f != lp_fa_obj_addr_r, 62);
+
+        // Check LP FA stores created.
+        let fa_res_acc_addr_f =
+            account::create_resource_address(&@liquidswap_pool_account,*pool_obj_name_f);
+        let lp_metadata_f =
+            get_lp_fa_metadata_from_x_y_metadatas<Uncorrelated>(fa_x_fake_metadata, fa_y_metadata);
+        assert!(primary_fungible_store::primary_store_exists(fa_res_acc_addr_f, lp_metadata_f), 63);
+
+        let fa_res_acc_addr_r =
+            account::create_resource_address(&@liquidswap_pool_account,*pool_obj_name_r);
+        let lp_metadata_r =
+            get_lp_fa_metadata_from_x_y_metadatas<Uncorrelated>(fa_x_real_metadata, fa_y_metadata);
+        assert!(primary_fungible_store::primary_store_exists(fa_res_acc_addr_r, lp_metadata_r), 64);
+
+        // Check LP FA stores are different.
+        assert!(lp_metadata_f != lp_metadata_r, 65);
+
+        // Check pools store correct LP metadata addresses.
+        assert!(liquidity_pool::get_pool_lp_metadata<Uncorrelated>(fa_x_fake_metadata, fa_y_metadata) == lp_metadata_f, 66);
+        assert!(liquidity_pool::get_pool_lp_metadata<Uncorrelated>(fa_x_real_metadata, fa_y_metadata) == lp_metadata_r, 67);
     }
 
     // Add liquidity tests.
@@ -580,32 +858,47 @@ module liquidswap_v05::liquidity_pool_tests {
 
         timestamp::fast_forward_seconds(1660338836);
 
-        let lp_fa_val =
-            test_pool::mint_liquidity<Uncorrelated>(&lp_owner, btc_liq, usdt_liq);
-
-        let expected_liquidity = 1673320053;
-        assert!(lp_fa_val == expected_liquidity - MINIMAL_LIQUIDITY, 0);
-        assert!(liquidity_pool::get_pool_lp_supply<Uncorrelated>(fa_x_metadata, fa_y_metadata) ==
-            (expected_liquidity as u128), 1);
-
-        let (x_res, y_res) =
-            liquidity_pool::get_reserves_size<Uncorrelated>(fa_x_metadata, fa_y_metadata);
-        assert!(x_res == btc_liq_val, 2);
-        assert!(y_res == usdt_liq_val, 3);
-
-        // Check pool FA stores directly.
+        // Check directly that pool LP FA store is empty before first mint.
         let pool_obj_name =
             string::bytes(&fa_helper::create_pool_obj_name<Uncorrelated>(fa_x_metadata, fa_y_metadata));
         let pool_fa_store_res_acc_addr =
             account::create_resource_address(&@liquidswap_pool_account, *pool_obj_name);
-        assert!(primary_fungible_store::balance(pool_fa_store_res_acc_addr, fa_x_metadata) == btc_liq_val, 4);
-        assert!(primary_fungible_store::balance(pool_fa_store_res_acc_addr, fa_y_metadata) == usdt_liq_val, 5);
+        let lp_metadata =
+            get_lp_fa_metadata_from_x_y_metadatas<Uncorrelated>(fa_x_metadata, fa_y_metadata);
+        assert!(primary_fungible_store::balance(pool_fa_store_res_acc_addr, lp_metadata) == 0, 1);
+
+        // Check LP supply getter before first mint.
+        assert!(liquidity_pool::get_pool_lp_supply<Uncorrelated>(fa_x_metadata, fa_y_metadata) == 0, 2);
+
+        let lp_fa_val =
+            test_pool::mint_liquidity<Uncorrelated>(&lp_owner, btc_liq, usdt_liq);
+
+        let expected_liquidity = 1673320053;
+        assert!(lp_fa_val == expected_liquidity - MINIMAL_LIQUIDITY, 3);
+
+        let (x_res, y_res) =
+            liquidity_pool::get_reserves_size<Uncorrelated>(fa_x_metadata, fa_y_metadata);
+        assert!(x_res == btc_liq_val, 4);
+        assert!(y_res == usdt_liq_val, 5);
+
+        // Check pool FA stores directly.
+        assert!(primary_fungible_store::balance(pool_fa_store_res_acc_addr, fa_x_metadata) == btc_liq_val, 6);
+        assert!(primary_fungible_store::balance(pool_fa_store_res_acc_addr, fa_y_metadata) == usdt_liq_val, 7);
+
+        // Check directly that pool LP FA store contains MINIMAL_LIQUIDITY amount.
+        assert!(primary_fungible_store::balance(pool_fa_store_res_acc_addr, lp_metadata) == MINIMAL_LIQUIDITY, 8);
+
+        // Check LP supply getter before after mint.
+        assert!(option::extract(&mut fungible_asset::supply(lp_metadata)) ==
+            (expected_liquidity as u128), 9);
+        assert!(liquidity_pool::get_pool_lp_supply<Uncorrelated>(fa_x_metadata, fa_y_metadata) ==
+            (expected_liquidity as u128), 10);
 
         let (x_price, y_price, ts) =
             liquidity_pool::get_cumulative_prices<Uncorrelated>(fa_x_metadata, fa_y_metadata);
-        assert!(x_price == 0, 6);
-        assert!(y_price == 0, 7);
-        assert!(ts == 1660338836, 8);
+        assert!(x_price == 0, 11);
+        assert!(y_price == 0, 12);
+        assert!(ts == 1660338836, 13);
     }
 
     #[test]
@@ -996,6 +1289,46 @@ module liquidswap_v05::liquidity_pool_tests {
 
         test_coins::burn_fa(&fa_admin, b"BTC", btc_return);
         test_coins::burn_fa(&fa_admin, b"USDT", usdt_return);
+    }
+
+    #[test]
+    #[expected_failure(abort_code = liquidity_pool::ERR_WRONG_POOL)]
+    fun test_burn_liquidity_fails_when_wrong_lp_passed() {
+        let (fa_admin, lp_owner) = setup_btc_usdt_pool();
+
+        // Create fake BTC pool.
+        let constructor_ref = object::create_named_object(&fa_admin, b"FAKE_BTC_FA_OBJ");
+        primary_fungible_store::create_primary_store_enabled_fungible_asset(
+            &constructor_ref,
+            option::none() /* max supply */,
+            string::utf8(b"BTC Fungible Asset"),
+            string::utf8(b"BTC"),
+            8,
+            string::utf8(b"http://www.example.com/favicon.ico"),
+            string::utf8(b"http://www.example.com"),
+        );
+        let mint_ref = fungible_asset::generate_mint_ref(&constructor_ref);
+
+        let fa_x_fake_metadata = fungible_asset::mint_ref_metadata(&mint_ref);
+        let fa_x_real_metadata = test_coins::get_fa_metadata_from_symbol(b"BTC");
+        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+
+        liquidity_pool::register<Uncorrelated>(&lp_owner, fa_x_fake_metadata, fa_y_metadata);
+
+        // Mint fake BTC liquidity.
+        let fake_btc_fa = fungible_asset::mint(&mint_ref, 2000000000000);
+        let usdt_fa = test_coins::mint_fa(&fa_admin, b"USDT", 560000000000000);
+
+        let fake_lp_fa =
+            liquidity_pool::mint<Uncorrelated>(fake_btc_fa, usdt_fa);
+        assert!(fungible_asset::amount(&fake_lp_fa) == 33466401060363, 1);
+
+        // Try to get real BTC for fake LP.
+        let (btc_return, usdt_return) =
+            liquidity_pool::burn<Uncorrelated>(fake_lp_fa, fa_x_real_metadata, fa_y_metadata);
+
+        primary_fungible_store::deposit(signer::address_of(&lp_owner), btc_return);
+        primary_fungible_store::deposit(signer::address_of(&lp_owner), usdt_return);
     }
 
     // Test swap.
