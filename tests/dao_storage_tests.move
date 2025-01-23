@@ -12,17 +12,17 @@ module liquidswap_v05::dao_storage_tests {
     use liquidswap_v05::dao_storage::{Self, FungibleStoreSigner};
     use liquidswap_v05::liquidity_pool;
     use liquidswap_v05::router;
-    use test_coin_admin::test_coins::{Self, BTC, USDT};
+    use test_fa_admin::test_fas;
     use test_helpers::test_account::create_account;
     use test_helpers::test_pool;
     use liquidswap_v05::global_config;
 
     #[test]
     fun test_register() {
-        let (_, lp_owner) = test_pool::setup_fa_and_lp_owner();
+        let (_, _) = test_pool::setup_fa_and_lp_owner();
 
-        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"BTC");
-        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"BTC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
 
         dao_storage::register_for_test<Uncorrelated>(fa_x_metadata, fa_y_metadata);
 
@@ -58,16 +58,16 @@ module liquidswap_v05::dao_storage_tests {
     fun test_deposit() {
         let (fa_admin, _) = test_pool::setup_fa_and_lp_owner();
 
-        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"BTC");
-        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"BTC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
 
         dao_storage::register_for_test<Uncorrelated>(
             fa_x_metadata,
             fa_y_metadata,
         );
 
-        let btc_fa = test_coins::mint_fa(&fa_admin, b"BTC", 100000000);
-        let usdt_fa = test_coins::mint_fa(&fa_admin, b"USDT", 1000000);
+        let btc_fa = test_fas::mint_fa(&fa_admin, b"BTC", 100000000);
+        let usdt_fa = test_fas::mint_fa(&fa_admin, b"USDT", 1000000);
 
         let (x_val, y_val) =
             dao_storage::get_storage_size<Uncorrelated>(
@@ -102,8 +102,8 @@ module liquidswap_v05::dao_storage_tests {
     fun test_deposit_fail_if_not_registered() {
         let (fa_admin, _) = test_pool::setup_fa_and_lp_owner();
 
-        let btc_fa = test_coins::mint_fa(&fa_admin, b"BTC", 100000000);
-        let usdt_fa = test_coins::mint_fa(&fa_admin, b"USDT", 1000000);
+        let btc_fa = test_fas::mint_fa(&fa_admin, b"BTC", 100000000);
+        let usdt_fa = test_fas::mint_fa(&fa_admin, b"USDT", 1000000);
 
         dao_storage::deposit_for_test<Uncorrelated>(btc_fa, usdt_fa);
     }
@@ -112,8 +112,8 @@ module liquidswap_v05::dao_storage_tests {
     fun test_withdraw(dao_admin_acc: signer) {
         let (fa_admin, _) = test_pool::setup_fa_and_lp_owner();
 
-        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"BTC");
-        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"BTC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
 
         dao_storage::register_for_test<Uncorrelated>(
             fa_x_metadata,
@@ -122,8 +122,8 @@ module liquidswap_v05::dao_storage_tests {
 
         create_account(&dao_admin_acc);
 
-        let btc_fa = test_coins::mint_fa(&fa_admin, b"BTC", 100000000);
-        let usdt_fa = test_coins::mint_fa(&fa_admin, b"USDT", 1000000);
+        let btc_fa = test_fas::mint_fa(&fa_admin, b"BTC", 100000000);
+        let usdt_fa = test_fas::mint_fa(&fa_admin, b"USDT", 1000000);
 
         dao_storage::deposit_for_test<Uncorrelated>(btc_fa, usdt_fa);
 
@@ -172,10 +172,10 @@ module liquidswap_v05::dao_storage_tests {
         assert!(primary_fungible_store::balance(fa_res_acc_addr, fa_x_metadata) == 0, 6);
         assert!(primary_fungible_store::balance(fa_res_acc_addr, fa_y_metadata) == 0, 7);
 
-        test_coins::burn_fa(&fa_admin, b"BTC", x);
-        test_coins::burn_fa(&fa_admin, b"USDT", y);
-        test_coins::burn_fa(&fa_admin, b"BTC", x0);
-        test_coins::burn_fa(&fa_admin, b"USDT", y0);
+        test_fas::burn_fa(&fa_admin, b"BTC", x);
+        test_fas::burn_fa(&fa_admin, b"USDT", y);
+        test_fas::burn_fa(&fa_admin, b"BTC", x0);
+        test_fas::burn_fa(&fa_admin, b"USDT", y0);
     }
 
     #[test(dao_admin_acc = @dao_admin)]
@@ -183,8 +183,8 @@ module liquidswap_v05::dao_storage_tests {
     fun test_withdraw_fail_if_more_deposited(dao_admin_acc: signer) {
         let (fa_admin, _) = test_pool::setup_fa_and_lp_owner();
 
-        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"BTC");
-        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"BTC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
 
         dao_storage::register_for_test<Uncorrelated>(
             fa_x_metadata,
@@ -193,8 +193,8 @@ module liquidswap_v05::dao_storage_tests {
 
         create_account(&dao_admin_acc);
 
-        let btc_fa = test_coins::mint_fa(&fa_admin, b"BTC", 100000000);
-        let usdt_fa = test_coins::mint_fa(&fa_admin, b"USDT", 1000000);
+        let btc_fa = test_fas::mint_fa(&fa_admin, b"BTC", 100000000);
+        let usdt_fa = test_fas::mint_fa(&fa_admin, b"USDT", 1000000);
 
         dao_storage::deposit_for_test<Uncorrelated>(btc_fa, usdt_fa);
 
@@ -207,8 +207,8 @@ module liquidswap_v05::dao_storage_tests {
                 fa_y_metadata,
             );
 
-        test_coins::burn_fa(&fa_admin, b"BTC", x);
-        test_coins::burn_fa(&fa_admin, b"USDT", y);
+        test_fas::burn_fa(&fa_admin, b"BTC", x);
+        test_fas::burn_fa(&fa_admin, b"USDT", y);
     }
 
     #[test(dao_admin_acc = @0xca)]
@@ -216,8 +216,8 @@ module liquidswap_v05::dao_storage_tests {
     fun test_withdraw_fail_if_not_dao_admin(dao_admin_acc: signer) {
         let (fa_admin, _) = test_pool::setup_fa_and_lp_owner();
 
-        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"BTC");
-        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"BTC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
 
         dao_storage::register_for_test<Uncorrelated>(
             fa_x_metadata,
@@ -226,8 +226,8 @@ module liquidswap_v05::dao_storage_tests {
 
         create_account(&dao_admin_acc);
 
-        let btc_fa = test_coins::mint_fa(&fa_admin, b"BTC", 100000000);
-        let usdt_fa = test_coins::mint_fa(&fa_admin, b"USDT", 1000000);
+        let btc_fa = test_fas::mint_fa(&fa_admin, b"BTC", 100000000);
+        let usdt_fa = test_fas::mint_fa(&fa_admin, b"USDT", 1000000);
 
         dao_storage::deposit_for_test<Uncorrelated>(
             btc_fa,
@@ -243,8 +243,8 @@ module liquidswap_v05::dao_storage_tests {
                 fa_y_metadata,
             );
 
-        test_coins::burn_fa(&fa_admin, b"BTC", x);
-        test_coins::burn_fa(&fa_admin, b"USDT", y);
+        test_fas::burn_fa(&fa_admin, b"BTC", x);
+        test_fas::burn_fa(&fa_admin, b"USDT", y);
     }
 
     #[test(dao_admin_acc = @dao_admin)]
@@ -253,8 +253,8 @@ module liquidswap_v05::dao_storage_tests {
 
         create_account(&dao_admin_acc);
 
-        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"BTC");
-        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"BTC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
 
         // 0.3% fee
         router::register_pool<Uncorrelated>(
@@ -263,14 +263,14 @@ module liquidswap_v05::dao_storage_tests {
             fa_y_metadata,
         );
 
-        let btc_fa = test_coins::mint_fa(&fa_admin, b"BTC", 100000);
-        let usdt_fa = test_coins::mint_fa(&fa_admin, b"USDT", 100000);
+        let btc_fa = test_fas::mint_fa(&fa_admin, b"BTC", 100000);
+        let usdt_fa = test_fas::mint_fa(&fa_admin, b"USDT", 100000);
 
         let lp_fa =
             liquidity_pool::mint<Uncorrelated>(btc_fa, usdt_fa);
         primary_fungible_store::deposit(signer::address_of(&lp_owner), lp_fa);
 
-        let btc_fa_to_exchange = test_coins::mint_fa(&fa_admin, b"BTC", 1000);
+        let btc_fa_to_exchange = test_fas::mint_fa(&fa_admin, b"BTC", 1000);
         let (zero, usdt_coins) =
             liquidity_pool::swap<Uncorrelated>(
                 btc_fa_to_exchange, 0,
@@ -312,19 +312,19 @@ module liquidswap_v05::dao_storage_tests {
         assert!(primary_fungible_store::balance(fa_res_acc_addr, fa_x_metadata) == 0, 7);
         assert!(primary_fungible_store::balance(fa_res_acc_addr, fa_y_metadata) == 0, 8);
 
-        test_coins::burn_fa(&fa_admin, b"BTC", x);
-        test_coins::burn_fa(&fa_admin, b"USDT", y);
+        test_fas::burn_fa(&fa_admin, b"BTC", x);
+        test_fas::burn_fa(&fa_admin, b"USDT", y);
 
         fungible_asset::destroy_zero(zero);
-        test_coins::burn_fa(&fa_admin, b"USDT", usdt_coins);
+        test_fas::burn_fa(&fa_admin, b"USDT", usdt_coins);
     }
 
     #[test]
     fun test_create_fa_storage_seed() {
-        let _ = test_coins::create_admin_with_fas();
+        let _ = test_fas::create_admin_with_fas();
 
-        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"BTC");
-        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"BTC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
 
         let seed = dao_storage::create_fa_storage_seed<Uncorrelated>(fa_x_metadata, fa_y_metadata);
         assert!(seed == string::utf8(b"BTC@0xde7426eb496bc9ad39e9840b8dc4012344f45ac420215e8204e7fd2f026b42f5-USDT@0x7a54c5c4b35ae946f10beb158bd575f1700271c5f83a0e4096ee80970cf1bbb9-Uncorrelated{}-DAO-FA-Storage"), 1);

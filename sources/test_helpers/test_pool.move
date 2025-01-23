@@ -10,7 +10,7 @@ module test_helpers::test_pool {
 
     use liquidswap_v05::liquidity_pool;
     use liquidswap_v05::lp_account;
-    use test_coin_admin::test_coins;
+    use test_fa_admin::test_fas;
 
     // todo: recheck funcs here
 
@@ -22,12 +22,6 @@ module test_helpers::test_pool {
     public fun create_liquidswap_admin(): signer {
         let admin = account::create_account_for_test(@liquidswap_v05);
         admin
-    }
-
-    public fun create_coin_admin_and_lp_owner(): (signer, signer) {
-        let coin_admin = test_coins::create_coin_admin();
-        let lp_owner = create_lp_owner();
-        (coin_admin, lp_owner)
     }
 
     public fun initialize_liquidity_pool() {
@@ -49,7 +43,7 @@ module test_helpers::test_pool {
 
         initialize_liquidity_pool();
 
-        let fa_admin = test_coins::create_admin_with_fas();
+        let fa_admin = test_fas::create_admin_with_fas();
         let lp_owner = create_lp_owner();
         (fa_admin, lp_owner)
     }

@@ -16,7 +16,7 @@ liquidswap_pool_account = "0x61d2c22a6cb7831bee0f48363b0eec92369357aece0d1142062
 liquidswap_emergency_account = "0x40f545e01332a00225e74a369eda3aed76a32dc6dccf6c08fba4499476d329"
 
 # Addresses for tests.
-test_coin_admin = "0x11"
+test_fa_admin = "0x11"
 test_helpers = "0x12"
 
 test_lp_owner = "0x12"

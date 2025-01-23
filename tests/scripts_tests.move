@@ -8,14 +8,14 @@ module liquidswap_v05::scripts_tests {
     use liquidswap_v05::liquidity_pool;
     use liquidswap_v05::router;
     use liquidswap_v05::scripts;
-    use test_coin_admin::test_coins::{Self, USDT, BTC};
+    use test_fa_admin::test_fas;
     use test_helpers::test_pool;
 
     fun register_pool_with_existing_liquidity(x_val: u64, y_val: u64): (signer, signer) {
         let (fa_admin, lp_owner) = test_pool::setup_fa_and_lp_owner();
 
-        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"BTC");
-        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"BTC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
 
         router::register_pool<Uncorrelated>(
             &lp_owner,
@@ -24,8 +24,8 @@ module liquidswap_v05::scripts_tests {
         );
 
         if (x_val != 0 && y_val != 0) {
-            let btc_fa = test_coins::mint_fa(&fa_admin, b"BTC", x_val);
-            let usdt_fa = test_coins::mint_fa(&fa_admin, b"USDT", y_val);
+            let btc_fa = test_fas::mint_fa(&fa_admin, b"BTC", x_val);
+            let usdt_fa = test_fas::mint_fa(&fa_admin, b"USDT", y_val);
             let lp_fa =
                 liquidity_pool::mint<Uncorrelated>(btc_fa, usdt_fa);
             primary_fungible_store::deposit(signer::address_of(&lp_owner), lp_fa);
@@ -37,8 +37,8 @@ module liquidswap_v05::scripts_tests {
     public entry fun test_register_pool_with_script() {
         let (_, lp_owner) = test_pool::setup_fa_and_lp_owner();
 
-        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"BTC");
-        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"BTC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
 
         scripts::register_pool<Uncorrelated>(&lp_owner, fa_x_metadata, fa_y_metadata);
 
@@ -49,15 +49,15 @@ module liquidswap_v05::scripts_tests {
     public entry fun test_register_and_add_liquidity_in_one_script() {
         let (fa_admin, lp_owner) = test_pool::setup_fa_and_lp_owner();
 
-        let btc_fa = test_coins::mint_fa(&fa_admin, b"BTC", 101);
-        let usdt_fa = test_coins::mint_fa(&fa_admin, b"USDT", 10100);
+        let btc_fa = test_fas::mint_fa(&fa_admin, b"BTC", 101);
+        let usdt_fa = test_fas::mint_fa(&fa_admin, b"USDT", 10100);
 
         let lp_owner_addr = signer::address_of(&lp_owner);
         primary_fungible_store::deposit(lp_owner_addr, btc_fa);
         primary_fungible_store::deposit(lp_owner_addr, usdt_fa);
 
-        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"BTC");
-        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"BTC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
 
         scripts::register_pool_and_add_liquidity<Uncorrelated>(
             &lp_owner,
@@ -82,15 +82,15 @@ module liquidswap_v05::scripts_tests {
     public entry fun test_add_liquidity() {
         let (fa_admin, lp_owner) = register_pool_with_existing_liquidity(0, 0);
 
-        let btc_fa = test_coins::mint_fa(&fa_admin, b"BTC", 101);
-        let usdt_fa = test_coins::mint_fa(&fa_admin, b"USDT", 10100);
+        let btc_fa = test_fas::mint_fa(&fa_admin, b"BTC", 101);
+        let usdt_fa = test_fas::mint_fa(&fa_admin, b"USDT", 10100);
 
         let lp_owner_addr = signer::address_of(&lp_owner);
         primary_fungible_store::deposit(lp_owner_addr, btc_fa);
         primary_fungible_store::deposit(lp_owner_addr, usdt_fa);
 
-        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"BTC");
-        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"BTC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
 
         scripts::add_liquidity<Uncorrelated>(
             &lp_owner,
@@ -113,8 +113,8 @@ module liquidswap_v05::scripts_tests {
     public entry fun test_remove_liquidity() {
         let (fa_admin, lp_owner) = register_pool_with_existing_liquidity(0, 0);
 
-        let btc_fa = test_coins::mint_fa(&fa_admin, b"BTC", 101);
-        let usdt_fa = test_coins::mint_fa(&fa_admin, b"USDT", 10100);
+        let btc_fa = test_fas::mint_fa(&fa_admin, b"BTC", 101);
+        let usdt_fa = test_fas::mint_fa(&fa_admin, b"USDT", 10100);
 
         let (btc, usdt, lp) =
             router::add_liquidity<Uncorrelated>(
@@ -129,8 +129,8 @@ module liquidswap_v05::scripts_tests {
         primary_fungible_store::deposit(lp_owner_addr, usdt);
         primary_fungible_store::deposit(lp_owner_addr, lp);
 
-        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"BTC");
-        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"BTC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
 
         scripts::remove_liquidity<Uncorrelated>(
             &lp_owner,
@@ -152,13 +152,13 @@ module liquidswap_v05::scripts_tests {
     public entry fun test_swap_exact_btc_for_usdt() {
         let (fa_admin, lp_owner) = register_pool_with_existing_liquidity(101, 10100);
 
-        let btc_fa_to_swap = test_coins::mint_fa(&fa_admin, b"BTC", 10);
+        let btc_fa_to_swap = test_fas::mint_fa(&fa_admin, b"BTC", 10);
 
         let lp_owner_addr = signer::address_of(&lp_owner);
         primary_fungible_store::deposit(lp_owner_addr, btc_fa_to_swap);
 
-        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"BTC");
-        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"BTC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
 
         scripts::swap<Uncorrelated>(
             &lp_owner,
@@ -176,13 +176,13 @@ module liquidswap_v05::scripts_tests {
     public entry fun test_swap_btc_for_exact_usdt() {
         let (fa_admin, lp_owner) = register_pool_with_existing_liquidity(101, 10100);
 
-        let btc_fa_to_swap = test_coins::mint_fa(&fa_admin, b"BTC", 10);
+        let btc_fa_to_swap = test_fas::mint_fa(&fa_admin, b"BTC", 10);
 
         let lp_owner_addr = signer::address_of(&lp_owner);
         primary_fungible_store::deposit(lp_owner_addr, btc_fa_to_swap);
 
-        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"BTC");
-        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"BTC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
 
         scripts::swap_into<Uncorrelated>(
             &lp_owner,
@@ -200,13 +200,13 @@ module liquidswap_v05::scripts_tests {
     public entry fun test_unchecked_swap_common() {
         let (fa_admin, lp_owner) = register_pool_with_existing_liquidity(101, 10100);
 
-        let btc_fa_to_swap = test_coins::mint_fa(&fa_admin, b"BTC", 10);
+        let btc_fa_to_swap = test_fas::mint_fa(&fa_admin, b"BTC", 10);
 
         let lp_owner_addr = signer::address_of(&lp_owner);
         primary_fungible_store::deposit(lp_owner_addr, btc_fa_to_swap);
 
-        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"BTC");
-        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"BTC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
 
         scripts::swap_unchecked<Uncorrelated>(
             &lp_owner,
@@ -225,13 +225,13 @@ module liquidswap_v05::scripts_tests {
     public entry fun test_unchecked_swap_can_use_worse_price() {
         let (fa_admin, lp_owner) = register_pool_with_existing_liquidity(101, 10100);
 
-        let btc_fa_to_swap = test_coins::mint_fa(&fa_admin, b"BTC", 10);
+        let btc_fa_to_swap = test_fas::mint_fa(&fa_admin, b"BTC", 10);
 
         let lp_owner_addr = signer::address_of(&lp_owner);
         primary_fungible_store::deposit(lp_owner_addr, btc_fa_to_swap);
 
-        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"BTC");
-        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"BTC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
 
         scripts::swap_unchecked<Uncorrelated>(
             &lp_owner,
@@ -251,13 +251,13 @@ module liquidswap_v05::scripts_tests {
     public entry fun test_unchecked_swap_fails_if_price_better_than_available_requested() {
         let (fa_admin, lp_owner) = register_pool_with_existing_liquidity(101, 10100);
 
-        let btc_fa_to_swap = test_coins::mint_fa(&fa_admin, b"BTC", 10);
+        let btc_fa_to_swap = test_fas::mint_fa(&fa_admin, b"BTC", 10);
 
         let lp_owner_addr = signer::address_of(&lp_owner);
         primary_fungible_store::deposit(lp_owner_addr, btc_fa_to_swap);
 
-        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"BTC");
-        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"BTC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
 
         scripts::swap_unchecked<Uncorrelated>(
             &lp_owner,

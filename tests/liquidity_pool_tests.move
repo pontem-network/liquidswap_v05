@@ -6,6 +6,7 @@ module liquidswap_v05::liquidity_pool_tests {
     use std::string::utf8;
 
     use aptos_framework::account;
+    use aptos_framework::coin;
     use aptos_framework::fungible_asset;
     use aptos_framework::fungible_asset::Metadata;
     use aptos_framework::object;
@@ -21,8 +22,9 @@ module liquidswap_v05::liquidity_pool_tests {
     use liquidswap_v05::global_config;
     use liquidswap_v05::liquidity_pool;
     use liquidswap_v05::curves;
-    use test_coin_admin::test_coins::{Self, USDT, BTC, USDC};
+    use test_fa_admin::test_fas;
     use test_helpers::test_pool::{Self, create_liquidswap_admin};
+    use aptos_framework::aptos_coin::{Self, AptosCoin};
 
     // todo: optimize imports
 
@@ -31,8 +33,8 @@ module liquidswap_v05::liquidity_pool_tests {
     fun setup_btc_usdt_pool(): (signer, signer) {
         let (fa_admin, lp_owner) = test_pool::setup_fa_and_lp_owner();
 
-        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"BTC");
-        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"BTC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
 
         liquidity_pool::register<Uncorrelated>(
             &lp_owner,
@@ -45,8 +47,8 @@ module liquidswap_v05::liquidity_pool_tests {
     fun setup_usdc_usdt_pool(): (signer, signer) {
         let (fa_admin, lp_owner) = test_pool::setup_fa_and_lp_owner();
 
-        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"USDC");
-        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"USDC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
 
         liquidity_pool::register<Stable>(
             &lp_owner,
@@ -98,8 +100,8 @@ module liquidswap_v05::liquidity_pool_tests {
     fun test_create_empty_pool_uncorrelated() {
         let (_, lp_owner) = test_pool::setup_fa_and_lp_owner();
 
-        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"BTC");
-        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"BTC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
 
         // Check no object before pool creation
         assert!(!liquidity_pool::is_pool_exists<Uncorrelated>(fa_x_metadata, fa_y_metadata), 1);
@@ -194,8 +196,8 @@ module liquidswap_v05::liquidity_pool_tests {
     fun test_create_pool_emergency_fails(emergency_acc: signer) {
         let (_, lp_owner) = test_pool::setup_fa_and_lp_owner();
 
-        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"BTC");
-        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"BTC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
 
         emergency::pause(&emergency_acc);
         liquidity_pool::register<Uncorrelated>(
@@ -209,8 +211,8 @@ module liquidswap_v05::liquidity_pool_tests {
     fun test_create_empty_pool_stable() {
         let (_, lp_owner) = test_pool::setup_fa_and_lp_owner();
 
-        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"USDC");
-        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"USDC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
 
         liquidity_pool::register<Stable>(
             &lp_owner,
@@ -261,8 +263,8 @@ module liquidswap_v05::liquidity_pool_tests {
     fun test_fail_if_coin_generics_provided_in_the_wrong_order() {
         let (_, lp_owner) = test_pool::setup_fa_and_lp_owner();
 
-        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"BTC");
-        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"BTC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
 
         liquidity_pool::register<Uncorrelated>(
             &lp_owner,
@@ -280,8 +282,8 @@ module liquidswap_v05::liquidity_pool_tests {
     fun test_fail_if_pool_already_exists() {
         let (_, lp_owner) = test_pool::setup_fa_and_lp_owner();
 
-        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"BTC");
-        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"BTC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
 
         liquidity_pool::register<Uncorrelated>(
             &lp_owner,
@@ -301,7 +303,7 @@ module liquidswap_v05::liquidity_pool_tests {
     fun test_fail_if_same_metadata_used_to_create_pool() {
         let (_, lp_owner) = test_pool::setup_fa_and_lp_owner();
 
-        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"BTC");
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"BTC");
 
         liquidity_pool::register<Uncorrelated>(
             &lp_owner,
@@ -314,20 +316,17 @@ module liquidswap_v05::liquidity_pool_tests {
     fun test_same_symbol_fas_used_to_create_pool() {
         let (fa_admin, lp_owner) = test_pool::setup_fa_and_lp_owner();
 
-        let constructor_ref = object::create_named_object(&fa_admin, b"BTC2_FA_OBJ");
-        primary_fungible_store::create_primary_store_enabled_fungible_asset(
-            &constructor_ref,
-            option::none() /* max supply */,
-            string::utf8(b"BTC Fungible Asset"),
-            string::utf8(b"BTC"),
+        // Create same another BTC FA.
+        let (mint_ref, _) = test_fas::register_fa(
+            &fa_admin,
+            b"BTC Fungible Asset",
+            b"BTC",
             8,
-            string::utf8(b"http://www.example.com/favicon.ico"),
-            string::utf8(b"http://www.example.com"),
+            b"BTC2_FA_OBJ"
         );
-        let mint_ref = fungible_asset::generate_mint_ref(&constructor_ref);
 
         let fa_x_metadata = fungible_asset::mint_ref_metadata(&mint_ref);
-        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"BTC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"BTC");
 
         liquidity_pool::register<Uncorrelated>(
             &lp_owner,
@@ -395,8 +394,8 @@ module liquidswap_v05::liquidity_pool_tests {
     fun test_create_two_pools_same_metadata_diff_curves() {
         let (_, lp_owner) = test_pool::setup_fa_and_lp_owner();
 
-        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"BTC");
-        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"BTC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
 
         // Check no objects before pool creation
         assert!(!liquidity_pool::is_pool_exists<Uncorrelated>(fa_x_metadata, fa_y_metadata), 1);
@@ -608,21 +607,18 @@ module liquidswap_v05::liquidity_pool_tests {
     fun test_create_two_pools_same_symbols_same_curves() {
         let (fa_admin, lp_owner) = test_pool::setup_fa_and_lp_owner();
 
-        let constructor_ref = object::create_named_object(&fa_admin, b"FAKE_BTC_FA_OBJ");
-        primary_fungible_store::create_primary_store_enabled_fungible_asset(
-            &constructor_ref,
-            option::none() /* max supply */,
-            string::utf8(b"BTC Fungible Asset"),
-            string::utf8(b"BTC"),
+        // Create fake BTC FA.
+        let (mint_ref, _) = test_fas::register_fa(
+            &fa_admin,
+            b"BTC Fungible Asset",
+            b"BTC",
             8,
-            string::utf8(b"http://www.example.com/favicon.ico"),
-            string::utf8(b"http://www.example.com"),
+            b"FAKE_BTC_FA_OBJ"
         );
-        let mint_ref = fungible_asset::generate_mint_ref(&constructor_ref);
 
         let fa_x_fake_metadata = fungible_asset::mint_ref_metadata(&mint_ref);
-        let fa_x_real_metadata = test_coins::get_fa_metadata_from_symbol(b"BTC");
-        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+        let fa_x_real_metadata = test_fas::get_fa_metadata_from_symbol(b"BTC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
 
         // Check no objects before pool creation
         assert!(!liquidity_pool::is_pool_exists<Uncorrelated>(fa_x_fake_metadata, fa_y_metadata), 1);
@@ -838,8 +834,8 @@ module liquidswap_v05::liquidity_pool_tests {
 
         let btc_liq_val = 100000000;
         let usdc_liq_val = 28000000000;
-        let btc_liq = test_coins::mint_fa(&fa_admin, b"BTC", btc_liq_val);
-        let usdc_liq = test_coins::mint_fa(&fa_admin, b"USDC", usdc_liq_val);
+        let btc_liq = test_fas::mint_fa(&fa_admin, b"BTC", btc_liq_val);
+        let usdc_liq = test_fas::mint_fa(&fa_admin, b"USDC", usdc_liq_val);
 
         test_pool::mint_liquidity<Uncorrelated>(&lp_owner, btc_liq, usdc_liq);
     }
@@ -848,13 +844,13 @@ module liquidswap_v05::liquidity_pool_tests {
     fun test_add_liquidity_to_empty_pool() {
         let (fa_admin, lp_owner) = setup_btc_usdt_pool();
 
-        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"BTC");
-        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"BTC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
 
         let btc_liq_val = 100000000;
         let usdt_liq_val = 28000000000;
-        let btc_liq = test_coins::mint_fa(&fa_admin, b"BTC", btc_liq_val);
-        let usdt_liq = test_coins::mint_fa(&fa_admin, b"USDT", usdt_liq_val);
+        let btc_liq = test_fas::mint_fa(&fa_admin, b"BTC", btc_liq_val);
+        let usdt_liq = test_fas::mint_fa(&fa_admin, b"USDT", usdt_liq_val);
 
         timestamp::fast_forward_seconds(1660338836);
 
@@ -908,8 +904,8 @@ module liquidswap_v05::liquidity_pool_tests {
 
         let btc_liq_val = 1000;
         let usdt_liq_val = 1000;
-        let btc_liq = test_coins::mint_fa(&fa_admin, b"BTC", btc_liq_val);
-        let usdt_liq = test_coins::mint_fa(&fa_admin, b"USDT", usdt_liq_val);
+        let btc_liq = test_fas::mint_fa(&fa_admin, b"BTC", btc_liq_val);
+        let usdt_liq = test_fas::mint_fa(&fa_admin, b"USDT", usdt_liq_val);
 
         test_pool::mint_liquidity<Uncorrelated>(&lp_owner, btc_liq, usdt_liq);
     }
@@ -921,8 +917,8 @@ module liquidswap_v05::liquidity_pool_tests {
 
         let btc_liq_val = 0;
         let usdt_liq_val = 0;
-        let btc_liq = test_coins::mint_fa(&fa_admin, b"BTC", btc_liq_val);
-        let usdt_liq = test_coins::mint_fa(&fa_admin, b"USDT", usdt_liq_val);
+        let btc_liq = test_fas::mint_fa(&fa_admin, b"BTC", btc_liq_val);
+        let usdt_liq = test_fas::mint_fa(&fa_admin, b"USDT", usdt_liq_val);
 
         test_pool::mint_liquidity<Uncorrelated>(&lp_owner, btc_liq, usdt_liq);
     }
@@ -933,14 +929,14 @@ module liquidswap_v05::liquidity_pool_tests {
 
         let btc_liq_val = 1001;
         let usdt_liq_val = 1001;
-        let btc_liq = test_coins::mint_fa(&fa_admin, b"BTC", btc_liq_val);
-        let usdt_liq = test_coins::mint_fa(&fa_admin, b"USDT", usdt_liq_val);
+        let btc_liq = test_fas::mint_fa(&fa_admin, b"BTC", btc_liq_val);
+        let usdt_liq = test_fas::mint_fa(&fa_admin, b"USDT", usdt_liq_val);
 
         let lp_fa_val =
             test_pool::mint_liquidity<Uncorrelated>(&lp_owner, btc_liq, usdt_liq);
 
-        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"BTC");
-        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"BTC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
 
         let expected_liquidity = 1001;
         assert!(lp_fa_val == expected_liquidity - MINIMAL_LIQUIDITY, 0);
@@ -960,8 +956,8 @@ module liquidswap_v05::liquidity_pool_tests {
 
         let btc_liq_val = 1001;
         let usdt_liq_val = 1001;
-        let btc_liq = test_coins::mint_fa(&fa_admin, b"BTC", btc_liq_val);
-        let usdt_liq = test_coins::mint_fa(&fa_admin, b"USDT", usdt_liq_val);
+        let btc_liq = test_fas::mint_fa(&fa_admin, b"BTC", btc_liq_val);
+        let usdt_liq = test_fas::mint_fa(&fa_admin, b"USDT", usdt_liq_val);
 
         emergency::pause(&emergency_acc);
 
@@ -974,8 +970,8 @@ module liquidswap_v05::liquidity_pool_tests {
 
         let btc_liq_val = 100000000;
         let usdt_liq_val = 28000000000;
-        let btc_liq = test_coins::mint_fa(&fa_admin, b"BTC", btc_liq_val);
-        let usdt_liq = test_coins::mint_fa(&fa_admin, b"USDT", usdt_liq_val);
+        let btc_liq = test_fas::mint_fa(&fa_admin, b"BTC", btc_liq_val);
+        let usdt_liq = test_fas::mint_fa(&fa_admin, b"USDT", usdt_liq_val);
 
         let initial_ts = 1660338836;
         timestamp::fast_forward_seconds(initial_ts);
@@ -983,8 +979,8 @@ module liquidswap_v05::liquidity_pool_tests {
         let lp_fa_val =
             test_pool::mint_liquidity<Uncorrelated>(&lp_owner, btc_liq, usdt_liq);
 
-        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"BTC");
-        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"BTC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
 
         let expected_liquidity = 1673320053;
         assert!(lp_fa_val == expected_liquidity - MINIMAL_LIQUIDITY, 0);
@@ -1013,8 +1009,8 @@ module liquidswap_v05::liquidity_pool_tests {
         timestamp::fast_forward_seconds(360);
 
         let expected_liquidity_2 = 3346640106;
-        let btc_liq = test_coins::mint_fa(&fa_admin, b"BTC", btc_liq_val * 2);
-        let usdt_liq = test_coins::mint_fa(&fa_admin, b"USDT", usdt_liq_val * 2);
+        let btc_liq = test_fas::mint_fa(&fa_admin, b"BTC", btc_liq_val * 2);
+        let usdt_liq = test_fas::mint_fa(&fa_admin, b"USDT", usdt_liq_val * 2);
 
         let lp_fa_val =
             test_pool::mint_liquidity<Uncorrelated>(&lp_owner, btc_liq, usdt_liq);
@@ -1044,19 +1040,108 @@ module liquidswap_v05::liquidity_pool_tests {
     }
 
     #[test]
+    fun test_add_liquidity_aptos_coin() {
+        let (fa_admin, lp_owner) = test_pool::setup_fa_and_lp_owner();
+
+        // Create AptosCoin.
+        let aptos_framework = account::create_signer_for_test(@aptos_framework);
+        let (apt_burn_cap, apt_mint_cap) =
+            aptos_coin::initialize_for_test_without_aggregator_factory(&aptos_framework);
+
+        let fa_x_metadata = option::extract(&mut coin::paired_metadata<AptosCoin>());
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"BTC");
+
+        liquidity_pool::register<Uncorrelated>(&lp_owner, fa_x_metadata, fa_y_metadata);
+
+        // Check APT <=> BTC pool LP created.
+        let lp_metadata =
+            get_lp_fa_metadata_from_x_y_metadatas<Uncorrelated>(fa_x_metadata, fa_y_metadata);
+        let pool_obj_name =
+            string::bytes(&fa_helper::create_pool_obj_name<Uncorrelated>(fa_x_metadata, fa_y_metadata));
+        let fa_res_acc_addr =
+            account::create_resource_address(&@liquidswap_pool_account,*pool_obj_name);
+        assert!(primary_fungible_store::primary_store_exists(fa_res_acc_addr, lp_metadata), 1);
+        assert!(!object::object_exists<Metadata>(
+            get_lp_fa_metadata_obj_addr_from_x_y_metadatas<Uncorrelated>(fa_y_metadata, fa_x_metadata)), 2);
+
+        // todo: recheck LP
+        let lp_name = fungible_asset::name(lp_metadata);
+        assert!(lp_name == utf8(b"LS05 LP-APT-BTC-U"), 3);
+        let lp_symbol = fungible_asset::symbol(lp_metadata);
+        assert!(lp_symbol == utf8(b"APT-BTCU"), 4);
+        let lp_supply = fungible_asset::supply(lp_metadata);
+        assert!(option::is_some(&lp_supply), 5);
+        assert!(*option::borrow(&lp_supply) == 0, 6);
+
+        let apt_liq_val = 100000000;
+        let btc_liq_val = 28000000000;
+
+        let apt_liq_coins = coin::mint<AptosCoin>(apt_liq_val, &apt_mint_cap);
+        let apt_liq_fa = coin::coin_to_fungible_asset(apt_liq_coins);
+        let btc_liq_fa = test_fas::mint_fa(&fa_admin, b"BTC", btc_liq_val);
+
+        timestamp::fast_forward_seconds(1660338836);
+
+        // Check directly that pool LP FA store is empty before first mint.
+        let pool_obj_name =
+            string::bytes(&fa_helper::create_pool_obj_name<Uncorrelated>(fa_x_metadata, fa_y_metadata));
+        let pool_fa_store_res_acc_addr =
+            account::create_resource_address(&@liquidswap_pool_account, *pool_obj_name);
+        let lp_metadata =
+            get_lp_fa_metadata_from_x_y_metadatas<Uncorrelated>(fa_x_metadata, fa_y_metadata);
+        assert!(primary_fungible_store::balance(pool_fa_store_res_acc_addr, lp_metadata) == 0, 7);
+
+        // Check LP supply getter before first mint.
+        assert!(liquidity_pool::get_pool_lp_supply<Uncorrelated>(fa_x_metadata, fa_y_metadata) == 0, 8);
+
+        let lp_fa_val =
+            test_pool::mint_liquidity<Uncorrelated>(&lp_owner, apt_liq_fa, btc_liq_fa);
+
+        let expected_liquidity = 1673320053;
+        assert!(lp_fa_val == expected_liquidity - MINIMAL_LIQUIDITY, 9);
+
+        let (x_res, y_res) =
+            liquidity_pool::get_reserves_size<Uncorrelated>(fa_x_metadata, fa_y_metadata);
+        assert!(x_res == apt_liq_val, 10);
+        assert!(y_res == btc_liq_val, 11);
+
+        // Check pool FA stores directly.
+        assert!(primary_fungible_store::balance(pool_fa_store_res_acc_addr, fa_x_metadata) == apt_liq_val, 12);
+        assert!(primary_fungible_store::balance(pool_fa_store_res_acc_addr, fa_y_metadata) == btc_liq_val, 13);
+
+        // Check directly that pool LP FA store contains MINIMAL_LIQUIDITY amount.
+        assert!(primary_fungible_store::balance(pool_fa_store_res_acc_addr, lp_metadata) == MINIMAL_LIQUIDITY, 14);
+
+        // Check LP supply getter before after mint.
+        assert!(option::extract(&mut fungible_asset::supply(lp_metadata)) ==
+            (expected_liquidity as u128), 15);
+        assert!(liquidity_pool::get_pool_lp_supply<Uncorrelated>(fa_x_metadata, fa_y_metadata) ==
+            (expected_liquidity as u128), 16);
+
+        let (x_price, y_price, ts) =
+            liquidity_pool::get_cumulative_prices<Uncorrelated>(fa_x_metadata, fa_y_metadata);
+        assert!(x_price == 0, 17);
+        assert!(y_price == 0, 18);
+        assert!(ts == 1660338836, 19);
+
+        coin::destroy_burn_cap(apt_burn_cap);
+        coin::destroy_mint_cap(apt_mint_cap);
+    }
+
+    #[test]
     #[expected_failure(abort_code = liquidity_pool::ERR_NOT_ENOUGH_LIQUIDITY)]
     fun test_add_liquidity_zero_for_pool_with_existing_liquidity() {
         let (fa_admin, lp_owner) = setup_btc_usdt_pool();
 
-        let btc_fa = test_coins::mint_fa(&fa_admin, b"BTC", 100100);
-        let usdt_fa = test_coins::mint_fa(&fa_admin, b"USDT", 100100);
+        let btc_fa = test_fas::mint_fa(&fa_admin, b"BTC", 100100);
+        let usdt_fa = test_fas::mint_fa(&fa_admin, b"USDT", 100100);
 
         let lp_fa_val =
             test_pool::mint_liquidity<Uncorrelated>(&lp_owner, btc_fa, usdt_fa);
         assert!(lp_fa_val == 99100, 0);
 
-        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"BTC");
-        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"BTC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
 
         let (x_res, y_res) =
             liquidity_pool::get_reserves_size<Uncorrelated>(fa_x_metadata, fa_y_metadata);
@@ -1077,8 +1162,8 @@ module liquidswap_v05::liquidity_pool_tests {
 
         let btc_liq_val = 1000;
         let usdt_liq_val = 1000;
-        let btc_liq = test_coins::mint_fa(&fa_admin, b"BTC", btc_liq_val);
-        let usdt_liq = test_coins::mint_fa(&fa_admin, b"USDT", usdt_liq_val);
+        let btc_liq = test_fas::mint_fa(&fa_admin, b"BTC", btc_liq_val);
+        let usdt_liq = test_fas::mint_fa(&fa_admin, b"USDT", usdt_liq_val);
 
         test_pool::mint_liquidity<Uncorrelated>(&lp_owner, usdt_liq, btc_liq);
     }
@@ -1089,13 +1174,13 @@ module liquidswap_v05::liquidity_pool_tests {
     fun test_fail_if_trying_to_burn_zero_values() {
         let (fa_admin, lp_owner) = setup_btc_usdt_pool();
 
-        let btc_fa = test_coins::mint_fa(&fa_admin, b"BTC", 2000000000000);
-        let usdt_fa = test_coins::mint_fa(&fa_admin, b"USDT", 560000000000000);
+        let btc_fa = test_fas::mint_fa(&fa_admin, b"BTC", 2000000000000);
+        let usdt_fa = test_fas::mint_fa(&fa_admin, b"USDT", 560000000000000);
 
         test_pool::mint_liquidity<Uncorrelated>(&lp_owner, btc_fa, usdt_fa);
 
-        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"BTC");
-        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"BTC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
 
         let lp_metadata = get_lp_fa_metadata_from_x_y_metadatas<Uncorrelated>(fa_x_metadata, fa_y_metadata);
         let (btc_return, usdt_return) =
@@ -1105,8 +1190,8 @@ module liquidswap_v05::liquidity_pool_tests {
                 fa_y_metadata,
             );
 
-        test_coins::burn_fa(&fa_admin, b"BTC", btc_return);
-        test_coins::burn_fa(&fa_admin, b"USDT", usdt_return);
+        test_fas::burn_fa(&fa_admin, b"BTC", btc_return);
+        test_fas::burn_fa(&fa_admin, b"USDT", usdt_return);
     }
 
     // Test burn liquidity.
@@ -1114,15 +1199,15 @@ module liquidswap_v05::liquidity_pool_tests {
     fun test_burn_liquidity_at_pool_registration() {
         let (fa_admin, _) = setup_btc_usdt_pool();
 
-        let btc_fa = test_coins::mint_fa(&fa_admin, b"BTC", 2000000000000);
-        let usdt_fa = test_coins::mint_fa(&fa_admin, b"USDT", 560000000000000);
+        let btc_fa = test_fas::mint_fa(&fa_admin, b"BTC", 2000000000000);
+        let usdt_fa = test_fas::mint_fa(&fa_admin, b"USDT", 560000000000000);
 
         let lp_fa =
             liquidity_pool::mint<Uncorrelated>(btc_fa, usdt_fa);
         assert!(fungible_asset::amount(&lp_fa) == 33466401060363, 0);
 
-        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"BTC");
-        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"BTC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
 
         let (x_res, y_res) =
             liquidity_pool::get_reserves_size<Uncorrelated>(fa_x_metadata, fa_y_metadata);
@@ -1148,8 +1233,8 @@ module liquidswap_v05::liquidity_pool_tests {
         assert!(primary_fungible_store::balance(pool_fa_store_res_acc_addr, fa_x_metadata) == 60, 7);
         assert!(primary_fungible_store::balance(pool_fa_store_res_acc_addr, fa_y_metadata) == 16734, 8);
 
-        test_coins::burn_fa(&fa_admin, b"BTC", btc_return);
-        test_coins::burn_fa(&fa_admin, b"USDT", usdt_return);
+        test_fas::burn_fa(&fa_admin, b"BTC", btc_return);
+        test_fas::burn_fa(&fa_admin, b"USDT", usdt_return);
     }
 
     #[test]
@@ -1160,8 +1245,8 @@ module liquidswap_v05::liquidity_pool_tests {
 
         timestamp::fast_forward_seconds(1660517742);
 
-        let btc_fa = test_coins::mint_fa(&fa_admin, b"BTC", 2000000000000);
-        let usdt_fa = test_coins::mint_fa(&fa_admin, b"USDT", 560000000000000);
+        let btc_fa = test_fas::mint_fa(&fa_admin, b"BTC", 2000000000000);
+        let usdt_fa = test_fas::mint_fa(&fa_admin, b"USDT", 560000000000000);
 
         let lp_fa_initial =
             liquidity_pool::mint<Uncorrelated>(btc_fa, usdt_fa);
@@ -1170,14 +1255,14 @@ module liquidswap_v05::liquidity_pool_tests {
 
         timestamp::fast_forward_seconds(7200);
 
-        let btc_fa = test_coins::mint_fa(&fa_admin, b"BTC", 50000000);
-        let usdt_fa = test_coins::mint_fa(&fa_admin, b"USDT", 14000000000);
+        let btc_fa = test_fas::mint_fa(&fa_admin, b"BTC", 50000000);
+        let usdt_fa = test_fas::mint_fa(&fa_admin, b"USDT", 14000000000);
 
         let lp_fa_user =
             liquidity_pool::mint<Uncorrelated>(btc_fa, usdt_fa);
 
-        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"BTC");
-        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"BTC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
 
         let (btc_return, usdt_return) =
             liquidity_pool::burn<Uncorrelated>(lp_fa_initial, fa_x_metadata, fa_y_metadata);
@@ -1185,8 +1270,8 @@ module liquidswap_v05::liquidity_pool_tests {
         assert!(fungible_asset::amount(&btc_return) == 1999999999940, 0);
         assert!(fungible_asset::amount(&usdt_return) == 559999999983275, 1);
 
-        test_coins::burn_fa(&fa_admin, b"BTC", btc_return);
-        test_coins::burn_fa(&fa_admin, b"USDT", usdt_return);
+        test_fas::burn_fa(&fa_admin, b"BTC", btc_return);
+        test_fas::burn_fa(&fa_admin, b"USDT", usdt_return);
 
         let (btc_return, usdt_return) =
             liquidity_pool::burn<Uncorrelated>(lp_fa_user, fa_x_metadata, fa_y_metadata);
@@ -1194,8 +1279,8 @@ module liquidswap_v05::liquidity_pool_tests {
         assert!(fungible_asset::amount(&btc_return) == 50000000, 2);
         assert!(fungible_asset::amount(&usdt_return) == 13999999991, 3);
 
-        test_coins::burn_fa(&fa_admin, b"BTC", btc_return);
-        test_coins::burn_fa(&fa_admin, b"USDT", usdt_return);
+        test_fas::burn_fa(&fa_admin, b"BTC", btc_return);
+        test_fas::burn_fa(&fa_admin, b"USDT", usdt_return);
 
         let (x_res, y_res) =
             liquidity_pool::get_reserves_size<Uncorrelated>(fa_x_metadata, fa_y_metadata);
@@ -1213,8 +1298,8 @@ module liquidswap_v05::liquidity_pool_tests {
     fun test_overflow_and_emergency_exit() {
         let (fa_admin, _) = setup_btc_usdt_pool();
 
-        let btc_fa = test_coins::mint_fa(&fa_admin, b"BTC", 18446744073709551615);
-        let usdt_fa = test_coins::mint_fa(&fa_admin, b"USDT", 18446744073709551615);
+        let btc_fa = test_fas::mint_fa(&fa_admin, b"BTC", 18446744073709551615);
+        let usdt_fa = test_fas::mint_fa(&fa_admin, b"USDT", 18446744073709551615);
 
         // Now we can't swap or add liquidity, if cumulative price is still has space, it wouldn never overflow,
         // we are able to exit.
@@ -1222,8 +1307,8 @@ module liquidswap_v05::liquidity_pool_tests {
         let lp_fa =
             liquidity_pool::mint<Uncorrelated>(btc_fa, usdt_fa);
 
-        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"BTC");
-        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"BTC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
 
         let (btc_return, usdt_return) =
             liquidity_pool::burn<Uncorrelated>(lp_fa, fa_x_metadata, fa_y_metadata);
@@ -1236,16 +1321,16 @@ module liquidswap_v05::liquidity_pool_tests {
         assert!(x_res == 1000, 2);
         assert!(y_res == 1000, 3);
 
-        test_coins::burn_fa(&fa_admin, b"BTC", btc_return);
-        test_coins::burn_fa(&fa_admin, b"USDT", usdt_return);
+        test_fas::burn_fa(&fa_admin, b"BTC", btc_return);
+        test_fas::burn_fa(&fa_admin, b"USDT", usdt_return);
     }
 
     #[test(emergency_acc = @emergency_admin)]
     fun test_emergency_exit(emergency_acc: signer) {
         let (fa_admin, _) = setup_btc_usdt_pool();
 
-        let btc_fa = test_coins::mint_fa(&fa_admin, b"BTC", 18446744073709551615);
-        let usdt_fa = test_coins::mint_fa(&fa_admin, b"USDT", 18446744073709551615);
+        let btc_fa = test_fas::mint_fa(&fa_admin, b"BTC", 18446744073709551615);
+        let usdt_fa = test_fas::mint_fa(&fa_admin, b"USDT", 18446744073709551615);
 
         // Now we can't swap or add liquidity, if cumulative price is still has space, it wouldn never overflow,
         // we are able to exit.
@@ -1256,8 +1341,8 @@ module liquidswap_v05::liquidity_pool_tests {
         emergency::pause(&emergency_acc);
         assert!(emergency::is_emergency() == true, 0);
 
-        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"BTC");
-        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"BTC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
 
         let (btc_return, usdt_return) =
             liquidity_pool::burn<Uncorrelated>(lp_fa, fa_x_metadata, fa_y_metadata);
@@ -1265,8 +1350,8 @@ module liquidswap_v05::liquidity_pool_tests {
         assert!(fungible_asset::amount(&btc_return) == 18446744073709550615, 1);
         assert!(fungible_asset::amount(&usdt_return) == 18446744073709550615, 2);
 
-        test_coins::burn_fa(&fa_admin, b"BTC", btc_return);
-        test_coins::burn_fa(&fa_admin, b"USDT", usdt_return);
+        test_fas::burn_fa(&fa_admin, b"BTC", btc_return);
+        test_fas::burn_fa(&fa_admin, b"USDT", usdt_return);
     }
 
     #[test]
@@ -1274,21 +1359,21 @@ module liquidswap_v05::liquidity_pool_tests {
     fun test_burn_liquidity_wrong_fa_ordering() {
         let (fa_admin, _) = setup_btc_usdt_pool();
 
-        let btc_fa = test_coins::mint_fa(&fa_admin, b"BTC", 2000000000000);
-        let usdt_fa = test_coins::mint_fa(&fa_admin, b"USDT", 560000000000000);
+        let btc_fa = test_fas::mint_fa(&fa_admin, b"BTC", 2000000000000);
+        let usdt_fa = test_fas::mint_fa(&fa_admin, b"USDT", 560000000000000);
 
         let lp_fa =
             liquidity_pool::mint<Uncorrelated>(btc_fa, usdt_fa);
         assert!(fungible_asset::amount(&lp_fa) == 33466401060363, 0);
 
-        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"BTC");
-        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"BTC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
 
         let (btc_return, usdt_return) =
             liquidity_pool::burn<Uncorrelated>(lp_fa, fa_y_metadata, fa_x_metadata);
 
-        test_coins::burn_fa(&fa_admin, b"BTC", btc_return);
-        test_coins::burn_fa(&fa_admin, b"USDT", usdt_return);
+        test_fas::burn_fa(&fa_admin, b"BTC", btc_return);
+        test_fas::burn_fa(&fa_admin, b"USDT", usdt_return);
     }
 
     #[test]
@@ -1296,28 +1381,25 @@ module liquidswap_v05::liquidity_pool_tests {
     fun test_burn_liquidity_fails_when_wrong_lp_passed() {
         let (fa_admin, lp_owner) = setup_btc_usdt_pool();
 
-        // Create fake BTC pool.
-        let constructor_ref = object::create_named_object(&fa_admin, b"FAKE_BTC_FA_OBJ");
-        primary_fungible_store::create_primary_store_enabled_fungible_asset(
-            &constructor_ref,
-            option::none() /* max supply */,
-            string::utf8(b"BTC Fungible Asset"),
-            string::utf8(b"BTC"),
+        // Create fake BTC FA.
+        let (mint_ref, _) = test_fas::register_fa(
+            &fa_admin,
+            b"BTC Fungible Asset",
+            b"BTC",
             8,
-            string::utf8(b"http://www.example.com/favicon.ico"),
-            string::utf8(b"http://www.example.com"),
+            b"BTC2_FA_OBJ"
         );
-        let mint_ref = fungible_asset::generate_mint_ref(&constructor_ref);
 
         let fa_x_fake_metadata = fungible_asset::mint_ref_metadata(&mint_ref);
-        let fa_x_real_metadata = test_coins::get_fa_metadata_from_symbol(b"BTC");
-        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+        let fa_x_real_metadata = test_fas::get_fa_metadata_from_symbol(b"BTC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
 
+        // Create fake BTC pool.
         liquidity_pool::register<Uncorrelated>(&lp_owner, fa_x_fake_metadata, fa_y_metadata);
 
         // Mint fake BTC liquidity.
         let fake_btc_fa = fungible_asset::mint(&mint_ref, 2000000000000);
-        let usdt_fa = test_coins::mint_fa(&fa_admin, b"USDT", 560000000000000);
+        let usdt_fa = test_fas::mint_fa(&fa_admin, b"USDT", 560000000000000);
 
         let fake_lp_fa =
             liquidity_pool::mint<Uncorrelated>(fake_btc_fa, usdt_fa);
@@ -1336,15 +1418,15 @@ module liquidswap_v05::liquidity_pool_tests {
     fun test_swap_coins() {
         let (fa_admin, lp_owner) = setup_btc_usdt_pool();
 
-        let btc_fa = test_coins::mint_fa(&fa_admin, b"BTC", 100100);
-        let usdt_fa = test_coins::mint_fa(&fa_admin, b"USDT", 100100);
+        let btc_fa = test_fas::mint_fa(&fa_admin, b"BTC", 100100);
+        let usdt_fa = test_fas::mint_fa(&fa_admin, b"USDT", 100100);
 
         test_pool::mint_liquidity<Uncorrelated>(&lp_owner, btc_fa, usdt_fa);
 
-        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"BTC");
-        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"BTC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
 
-        let btc_fa_to_exchange = test_coins::mint_fa(&fa_admin, b"BTC", 2);
+        let btc_fa_to_exchange = test_fas::mint_fa(&fa_admin, b"BTC", 2);
         let (zero, usdt_fa) =
             liquidity_pool::swap<Uncorrelated>(
                 btc_fa_to_exchange, 0,
@@ -1358,7 +1440,7 @@ module liquidswap_v05::liquidity_pool_tests {
         assert!(y_res == 100099, 2);
 
         fungible_asset::destroy_zero(zero);
-        test_coins::burn_fa(&fa_admin, b"USDT", usdt_fa);
+        test_fas::burn_fa(&fa_admin, b"USDT", usdt_fa);
     }
 
     #[test(emergency_acc = @emergency_admin)]
@@ -1366,16 +1448,16 @@ module liquidswap_v05::liquidity_pool_tests {
     fun test_swap_coins_emergency_fails(emergency_acc: signer) {
         let (fa_admin, lp_owner) = setup_btc_usdt_pool();
 
-        let btc_fa = test_coins::mint_fa(&fa_admin, b"BTC", 100100);
-        let usdt_fa = test_coins::mint_fa(&fa_admin, b"USDT", 100100);
+        let btc_fa = test_fas::mint_fa(&fa_admin, b"BTC", 100100);
+        let usdt_fa = test_fas::mint_fa(&fa_admin, b"USDT", 100100);
 
         test_pool::mint_liquidity<Uncorrelated>(&lp_owner, btc_fa, usdt_fa);
 
         emergency::pause(&emergency_acc);
 
-        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
 
-        let btc_fa_to_exchange = test_coins::mint_fa(&fa_admin, b"BTC", 2);
+        let btc_fa_to_exchange = test_fas::mint_fa(&fa_admin, b"BTC", 2);
         let (zero, usdt_fa) =
             liquidity_pool::swap<Uncorrelated>(
                 btc_fa_to_exchange, 0,
@@ -1383,21 +1465,21 @@ module liquidswap_v05::liquidity_pool_tests {
             );
 
         fungible_asset::destroy_zero(zero);
-        test_coins::burn_fa(&fa_admin, b"USDT", usdt_fa);
+        test_fas::burn_fa(&fa_admin, b"USDT", usdt_fa);
     }
 
     #[test]
     fun test_swap_coins_max_amounts() {
         let (fa_admin, lp_owner) = setup_btc_usdt_pool();
 
-        let btc_fa = test_coins::mint_fa(&fa_admin, b"BTC", 18446744073709550615);
-        let usdt_fa = test_coins::mint_fa(&fa_admin, b"USDT", 18446744073709551615);
+        let btc_fa = test_fas::mint_fa(&fa_admin, b"BTC", 18446744073709550615);
+        let usdt_fa = test_fas::mint_fa(&fa_admin, b"USDT", 18446744073709551615);
 
         test_pool::mint_liquidity<Uncorrelated>(&lp_owner, btc_fa, usdt_fa);
 
-        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
 
-        let btc_fa_to_exchange = test_coins::mint_fa(&fa_admin, b"BTC", 1000);
+        let btc_fa_to_exchange = test_fas::mint_fa(&fa_admin, b"BTC", 1000);
         let (zero, usdt_fa) =
             liquidity_pool::swap<Uncorrelated>(
                 btc_fa_to_exchange, 0,
@@ -1405,15 +1487,15 @@ module liquidswap_v05::liquidity_pool_tests {
             );
 
         fungible_asset::destroy_zero(zero);
-        test_coins::burn_fa(&fa_admin, b"USDT", usdt_fa);
+        test_fas::burn_fa(&fa_admin, b"USDT", usdt_fa);
     }
 
     #[test]
     fun test_swap_coins_1() {
         let (fa_admin, lp_owner) = setup_btc_usdt_pool();
 
-        let btc_fa = test_coins::mint_fa(&fa_admin, b"BTC", 10000000000);
-        let usdt_fa = test_coins::mint_fa(&fa_admin, b"USDT", 2800000000000);
+        let btc_fa = test_fas::mint_fa(&fa_admin, b"BTC", 10000000000);
+        let usdt_fa = test_fas::mint_fa(&fa_admin, b"USDT", 2800000000000);
 
         timestamp::fast_forward_seconds(1660545565);
 
@@ -1421,10 +1503,10 @@ module liquidswap_v05::liquidity_pool_tests {
 
         timestamp::fast_forward_seconds(20);
 
-        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"BTC");
-        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"BTC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
 
-        let btc_fa_to_exchange = test_coins::mint_fa(&fa_admin, b"BTC", 100000000);
+        let btc_fa_to_exchange = test_fas::mint_fa(&fa_admin, b"BTC", 100000000);
         let (btc_zero, usdt_fa) =
             liquidity_pool::swap<Uncorrelated>(
                 btc_fa_to_exchange, 0,
@@ -1463,7 +1545,7 @@ module liquidswap_v05::liquidity_pool_tests {
 
         timestamp::fast_forward_seconds(3600);
 
-        let usdt_fa_to_exchange = test_coins::mint_fa(&fa_admin, b"USDT", 1000000);
+        let usdt_fa_to_exchange = test_fas::mint_fa(&fa_admin, b"USDT", 1000000);
         let (btc_fa, usdt_zero) =
             liquidity_pool::swap<Uncorrelated>(
                 fungible_asset::zero(fa_x_metadata), 3632,
@@ -1501,8 +1583,8 @@ module liquidswap_v05::liquidity_pool_tests {
 
         fungible_asset::destroy_zero(btc_zero);
         fungible_asset::destroy_zero(usdt_zero);
-        test_coins::burn_fa(&fa_admin, b"BTC", btc_fa);
-        test_coins::burn_fa(&fa_admin, b"USDT", usdt_fa);
+        test_fas::burn_fa(&fa_admin, b"BTC", btc_fa);
+        test_fas::burn_fa(&fa_admin, b"USDT", usdt_fa);
     }
 
     #[test]
@@ -1510,14 +1592,14 @@ module liquidswap_v05::liquidity_pool_tests {
     fun test_swap_coins_1_fail() {
         let (fa_admin, lp_owner) = setup_btc_usdt_pool();
 
-        let btc_fa = test_coins::mint_fa(&fa_admin, b"BTC", 10000000000);
-        let usdt_fa = test_coins::mint_fa(&fa_admin, b"USDT", 2800000000000);
+        let btc_fa = test_fas::mint_fa(&fa_admin, b"BTC", 10000000000);
+        let usdt_fa = test_fas::mint_fa(&fa_admin, b"USDT", 2800000000000);
 
         test_pool::mint_liquidity<Uncorrelated>(&lp_owner, btc_fa, usdt_fa);
 
-        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
 
-        let btc_fa_to_exchange = test_coins::mint_fa(&fa_admin, b"BTC", 100000000);
+        let btc_fa_to_exchange = test_fas::mint_fa(&fa_admin, b"BTC", 100000000);
         let (zero, usdt_fa) =
             liquidity_pool::swap<Uncorrelated>(
                 btc_fa_to_exchange, 0,
@@ -1526,7 +1608,7 @@ module liquidswap_v05::liquidity_pool_tests {
         assert!(fungible_asset::amount(&usdt_fa) == 27640424964, 0);
 
         fungible_asset::destroy_zero(zero);
-        test_coins::burn_fa(&fa_admin, b"USDT", usdt_fa);
+        test_fas::burn_fa(&fa_admin, b"USDT", usdt_fa);
     }
 
     #[test]
@@ -1534,13 +1616,13 @@ module liquidswap_v05::liquidity_pool_tests {
     fun test_swap_coins_zero_fail() {
         let (fa_admin, lp_owner) = setup_btc_usdt_pool();
 
-        let btc_fa = test_coins::mint_fa(&fa_admin, b"BTC", 10000000000);
-        let usdt_fa = test_coins::mint_fa(&fa_admin, b"USDT", 2800000000000);
+        let btc_fa = test_fas::mint_fa(&fa_admin, b"BTC", 10000000000);
+        let usdt_fa = test_fas::mint_fa(&fa_admin, b"USDT", 2800000000000);
 
         test_pool::mint_liquidity<Uncorrelated>(&lp_owner, btc_fa, usdt_fa);
 
-        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"BTC");
-        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"BTC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
 
         let (btc_fa, usdt_fa) =
             liquidity_pool::swap<Uncorrelated>(
@@ -1548,22 +1630,22 @@ module liquidswap_v05::liquidity_pool_tests {
                 fungible_asset::zero(fa_y_metadata), 1
             );
 
-        test_coins::burn_fa(&fa_admin, b"USDT", usdt_fa);
-        test_coins::burn_fa(&fa_admin, b"BTC", btc_fa);
+        test_fas::burn_fa(&fa_admin, b"USDT", usdt_fa);
+        test_fas::burn_fa(&fa_admin, b"BTC", btc_fa);
     }
 
     #[test]
     fun test_swap_coins_vice_versa() {
         let (fa_admin, lp_owner) = setup_btc_usdt_pool();
 
-        let btc_fa = test_coins::mint_fa(&fa_admin, b"BTC", 10000000000);
-        let usdt_fa = test_coins::mint_fa(&fa_admin, b"USDT", 2800000000000);
+        let btc_fa = test_fas::mint_fa(&fa_admin, b"BTC", 10000000000);
+        let usdt_fa = test_fas::mint_fa(&fa_admin, b"USDT", 2800000000000);
 
         test_pool::mint_liquidity<Uncorrelated>(&lp_owner, btc_fa, usdt_fa);
 
-        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"BTC");
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"BTC");
 
-        let usdt_fa_to_exchange = test_coins::mint_fa(&fa_admin, b"USDT", 28000000000);
+        let usdt_fa_to_exchange = test_fas::mint_fa(&fa_admin, b"USDT", 28000000000);
         let (btc_fa, zero) =
             liquidity_pool::swap<Uncorrelated>(
                 fungible_asset::zero(fa_x_metadata), 98715803,
@@ -1571,8 +1653,8 @@ module liquidswap_v05::liquidity_pool_tests {
             );
         assert!(fungible_asset::amount(&btc_fa) == 98715803, 0);
 
-        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"BTC");
-        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"BTC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
 
         let (x_res, y_res) =
             liquidity_pool::get_reserves_size<Uncorrelated>(fa_x_metadata, fa_y_metadata);
@@ -1580,7 +1662,7 @@ module liquidswap_v05::liquidity_pool_tests {
         assert!(y_res == 2827972000000, 2);
 
         fungible_asset::destroy_zero(zero);
-        test_coins::burn_fa(&fa_admin, b"BTC", btc_fa);
+        test_fas::burn_fa(&fa_admin, b"BTC", btc_fa);
     }
 
     #[test]
@@ -1588,14 +1670,14 @@ module liquidswap_v05::liquidity_pool_tests {
     fun test_swap_coins_vice_versa_fail() {
         let (fa_admin, lp_owner) = setup_btc_usdt_pool();
 
-        let btc_fa = test_coins::mint_fa(&fa_admin, b"BTC", 10000000000);
-        let usdt_fa = test_coins::mint_fa(&fa_admin, b"USDT", 2800000000000);
+        let btc_fa = test_fas::mint_fa(&fa_admin, b"BTC", 10000000000);
+        let usdt_fa = test_fas::mint_fa(&fa_admin, b"USDT", 2800000000000);
 
         test_pool::mint_liquidity<Uncorrelated>(&lp_owner, btc_fa, usdt_fa);
 
-        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"BTC");
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"BTC");
 
-        let usdt_fa_to_exchange = test_coins::mint_fa(&fa_admin, b"USDT", 28000000000);
+        let usdt_fa_to_exchange = test_fas::mint_fa(&fa_admin, b"USDT", 28000000000);
         let (btc_fa, zero) =
             liquidity_pool::swap<Uncorrelated>(
                 fungible_asset::zero(fa_x_metadata), 98715804,
@@ -1604,20 +1686,20 @@ module liquidswap_v05::liquidity_pool_tests {
         assert!(fungible_asset::amount(&btc_fa) == 98715804, 0);
 
         fungible_asset::destroy_zero(zero);
-        test_coins::burn_fa(&fa_admin, b"BTC", btc_fa);
+        test_fas::burn_fa(&fa_admin, b"BTC", btc_fa);
     }
 
     #[test]
     fun test_swap_two_coins_success() {
         let (fa_admin, lp_owner) = setup_btc_usdt_pool();
 
-        let btc_fa = test_coins::mint_fa(&fa_admin, b"BTC", 10000000000);
-        let usdt_fa = test_coins::mint_fa(&fa_admin, b"USDT", 2800000000000);
+        let btc_fa = test_fas::mint_fa(&fa_admin, b"BTC", 10000000000);
+        let usdt_fa = test_fas::mint_fa(&fa_admin, b"USDT", 2800000000000);
 
         test_pool::mint_liquidity<Uncorrelated>(&lp_owner, btc_fa, usdt_fa);
 
-        let usdt_fa_to_exchange = test_coins::mint_fa(&fa_admin, b"USDT", 28000000000);
-        let btc_to_exchange = test_coins::mint_fa(&fa_admin, b"BTC", 100000000);
+        let usdt_fa_to_exchange = test_fas::mint_fa(&fa_admin, b"USDT", 28000000000);
+        let btc_to_exchange = test_fas::mint_fa(&fa_admin, b"BTC", 100000000);
         let (btc_fa, usdt_fa) =
             liquidity_pool::swap<Uncorrelated>(
                 btc_to_exchange, 99900003,
@@ -1627,8 +1709,8 @@ module liquidswap_v05::liquidity_pool_tests {
         assert!(fungible_asset::amount(&btc_fa) == 99900003, 0);
         assert!(fungible_asset::amount(&usdt_fa) == 27859998039, 1);
 
-        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"BTC");
-        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"BTC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
 
         let (x_res, y_res) =
             liquidity_pool::get_reserves_size<Uncorrelated>(fa_x_metadata, fa_y_metadata);
@@ -1653,8 +1735,8 @@ module liquidswap_v05::liquidity_pool_tests {
         assert!(primary_fungible_store::balance(fa_res_acc_addr, fa_x_metadata) == 100000, 6);
         assert!(primary_fungible_store::balance(fa_res_acc_addr, fa_y_metadata) == 28000000, 7);
 
-        test_coins::burn_fa(&fa_admin, b"BTC", btc_fa);
-        test_coins::burn_fa(&fa_admin, b"USDT", usdt_fa);
+        test_fas::burn_fa(&fa_admin, b"BTC", btc_fa);
+        test_fas::burn_fa(&fa_admin, b"USDT", usdt_fa);
     }
 
     #[test]
@@ -1662,13 +1744,13 @@ module liquidswap_v05::liquidity_pool_tests {
     fun test_swap_two_coins_failure() {
         let (fa_admin, lp_owner) = setup_btc_usdt_pool();
 
-        let btc_fa = test_coins::mint_fa(&fa_admin, b"BTC", 10000000000);
-        let usdt_fa = test_coins::mint_fa(&fa_admin, b"USDT", 2800000000000);
+        let btc_fa = test_fas::mint_fa(&fa_admin, b"BTC", 10000000000);
+        let usdt_fa = test_fas::mint_fa(&fa_admin, b"USDT", 2800000000000);
 
         test_pool::mint_liquidity<Uncorrelated>(&lp_owner, btc_fa, usdt_fa);
 
-        let usdt_fa_to_exchange = test_coins::mint_fa(&fa_admin, b"USDT", 28000000000);
-        let btc_to_exchange = test_coins::mint_fa(&fa_admin, b"BTC", 100000000);
+        let usdt_fa_to_exchange = test_fas::mint_fa(&fa_admin, b"USDT", 28000000000);
+        let btc_to_exchange = test_fas::mint_fa(&fa_admin, b"BTC", 100000000);
         let (btc_fa, usdt_fa) =
             liquidity_pool::swap<Uncorrelated>(
                 btc_to_exchange, 99900003,
@@ -1678,16 +1760,16 @@ module liquidswap_v05::liquidity_pool_tests {
         assert!(fungible_asset::amount(&btc_fa) == 99900003, 0);
         assert!(fungible_asset::amount(&usdt_fa) == 27859998040, 1);
 
-        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"BTC");
-        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"BTC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
 
         let (x_res, y_res) =
             liquidity_pool::get_reserves_size<Uncorrelated>(fa_x_metadata, fa_y_metadata);
         assert!(x_res == 9999999997, 2);
         assert!(y_res == 2800112001960, 3);
 
-        test_coins::burn_fa(&fa_admin, b"BTC", btc_fa);
-        test_coins::burn_fa(&fa_admin, b"USDT", usdt_fa);
+        test_fas::burn_fa(&fa_admin, b"BTC", btc_fa);
+        test_fas::burn_fa(&fa_admin, b"USDT", usdt_fa);
     }
 
     #[test]
@@ -1695,37 +1777,37 @@ module liquidswap_v05::liquidity_pool_tests {
     fun test_cannot_swap_coins_and_reduce_value_of_pool() {
         let (fa_admin, lp_owner) = setup_btc_usdt_pool();
 
-        let btc_fa = test_coins::mint_fa(&fa_admin, b"BTC", 100100);
-        let usdt_fa = test_coins::mint_fa(&fa_admin, b"USDT", 100100);
+        let btc_fa = test_fas::mint_fa(&fa_admin, b"BTC", 100100);
+        let usdt_fa = test_fas::mint_fa(&fa_admin, b"USDT", 100100);
 
         test_pool::mint_liquidity<Uncorrelated>(&lp_owner, btc_fa, usdt_fa);
 
-        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
 
         // 1 minus fee for 1
-        let btc_fa_to_exchange = test_coins::mint_fa(&fa_admin, b"BTC", 1);
+        let btc_fa_to_exchange = test_fas::mint_fa(&fa_admin, b"BTC", 1);
         let (zero, usdt_fa) =
             liquidity_pool::swap<Uncorrelated>(
                 btc_fa_to_exchange, 0,
                 fungible_asset::zero(fa_y_metadata), 1
             );
         fungible_asset::destroy_zero(zero);
-        test_coins::burn_fa(&fa_admin, b"USDT", usdt_fa);
+        test_fas::burn_fa(&fa_admin, b"USDT", usdt_fa);
     }
 
     #[test]
     fun test_swap_coins_with_stable_curve_type() {
         let (fa_admin, lp_owner) = setup_usdc_usdt_pool();
 
-        let usdc_fa = test_coins::mint_fa(&fa_admin, b"USDC", 1000000);
-        let usdt_fa = test_coins::mint_fa(&fa_admin, b"USDT", 100000000);
+        let usdc_fa = test_fas::mint_fa(&fa_admin, b"USDC", 1000000);
+        let usdt_fa = test_fas::mint_fa(&fa_admin, b"USDT", 100000000);
 
         test_pool::mint_liquidity<Stable>(&lp_owner, usdc_fa, usdt_fa);
 
-        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"USDC");
-        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"USDC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
 
-        let usdc_fa_to_exchange = test_coins::mint_fa(&fa_admin, b"USDC", 1);
+        let usdc_fa_to_exchange = test_fas::mint_fa(&fa_admin, b"USDC", 1);
         let (zero, usdt_fa) =
             liquidity_pool::swap<Stable>(
                 usdc_fa_to_exchange, 0,
@@ -1739,22 +1821,22 @@ module liquidswap_v05::liquidity_pool_tests {
         assert!(y_res == 99999901, 2);
 
         fungible_asset::destroy_zero(zero);
-        test_coins::burn_fa(&fa_admin, b"USDT", usdt_fa);
+        test_fas::burn_fa(&fa_admin, b"USDT", usdt_fa);
     }
 
     #[test]
     fun test_swap_coins_with_stable_curve_type_1() {
         let (fa_admin, lp_owner) = setup_usdc_usdt_pool();
 
-        let usdc_fa = test_coins::mint_fa(&fa_admin, b"USDC", 15000000000);
-        let usdt_fa = test_coins::mint_fa(&fa_admin, b"USDT", 1500000000000);
+        let usdc_fa = test_fas::mint_fa(&fa_admin, b"USDC", 15000000000);
+        let usdt_fa = test_fas::mint_fa(&fa_admin, b"USDT", 1500000000000);
 
         test_pool::mint_liquidity<Stable>(&lp_owner, usdc_fa, usdt_fa);
 
-        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"USDC");
-        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"USDC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
 
-        let usdc_fa_to_exchange = test_coins::mint_fa(&fa_admin, b"USDC", 7078017525);
+        let usdc_fa_to_exchange = test_fas::mint_fa(&fa_admin, b"USDC", 7078017525);
         let (zero, usdt_fa) =
             liquidity_pool::swap<Stable>(
                 usdc_fa_to_exchange, 0,
@@ -1768,22 +1850,22 @@ module liquidswap_v05::liquidity_pool_tests {
         assert!(y_res == 827209071577, 2);
 
         fungible_asset::destroy_zero(zero);
-        test_coins::burn_fa(&fa_admin, b"USDT", usdt_fa);
+        test_fas::burn_fa(&fa_admin, b"USDT", usdt_fa);
     }
 
     #[test]
     fun test_swap_coins_with_stable_curve_type_2() {
         let (fa_admin, lp_owner) = setup_usdc_usdt_pool();
 
-        let usdc_fa = test_coins::mint_fa(&fa_admin, b"USDC", 15000000000);
-        let usdt_fa = test_coins::mint_fa(&fa_admin, b"USDT", 1500000000000);
+        let usdc_fa = test_fas::mint_fa(&fa_admin, b"USDC", 15000000000);
+        let usdt_fa = test_fas::mint_fa(&fa_admin, b"USDT", 1500000000000);
 
         test_pool::mint_liquidity<Stable>(&lp_owner, usdc_fa, usdt_fa);
 
-        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"USDC");
-        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"USDC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
 
-        let usdc_fa_to_exchange = test_coins::mint_fa(&fa_admin, b"USDC", 152);
+        let usdc_fa_to_exchange = test_fas::mint_fa(&fa_admin, b"USDC", 152);
         let (zero, usdt_fa) =
             liquidity_pool::swap<Stable>(
                 usdc_fa_to_exchange, 0,
@@ -1797,22 +1879,22 @@ module liquidswap_v05::liquidity_pool_tests {
         assert!(y_res == 1499999984801, 2);
 
         fungible_asset::destroy_zero(zero);
-        test_coins::burn_fa(&fa_admin, b"USDT", usdt_fa);
+        test_fas::burn_fa(&fa_admin, b"USDT", usdt_fa);
     }
 
     #[test]
     fun test_swap_coins_with_stable_curve_type_3() {
         let (fa_admin, lp_owner) = setup_usdc_usdt_pool();
 
-        let usdc_fa = test_coins::mint_fa(&fa_admin, b"USDC", 15000000000);
-        let usdt_fa = test_coins::mint_fa(&fa_admin, b"USDT", 1500000000000);
+        let usdc_fa = test_fas::mint_fa(&fa_admin, b"USDC", 15000000000);
+        let usdt_fa = test_fas::mint_fa(&fa_admin, b"USDT", 1500000000000);
 
         test_pool::mint_liquidity<Stable>(&lp_owner, usdc_fa, usdt_fa);
 
-        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"USDC");
-        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"USDC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
 
-        let usdc_fa_to_exchange = test_coins::mint_fa(&fa_admin, b"USDC", 6748155);
+        let usdc_fa_to_exchange = test_fas::mint_fa(&fa_admin, b"USDC", 6748155);
         let (zero, usdt_fa) =
             liquidity_pool::swap<Stable>(
                 usdc_fa_to_exchange, 0,
@@ -1826,22 +1908,22 @@ module liquidswap_v05::liquidity_pool_tests {
         assert!(y_res == 1499327208901, 2);
 
         fungible_asset::destroy_zero(zero);
-        test_coins::burn_fa(&fa_admin, b"USDT", usdt_fa);
+        test_fas::burn_fa(&fa_admin, b"USDT", usdt_fa);
     }
 
     #[test]
     fun test_swap_coins_with_stable_curve_type_1_unit() {
         let (fa_admin, lp_owner) = setup_usdc_usdt_pool();
 
-        let usdc_fa = test_coins::mint_fa(&fa_admin, b"USDC", 1000000);
-        let usdt_fa = test_coins::mint_fa(&fa_admin, b"USDT", 100000000);
+        let usdc_fa = test_fas::mint_fa(&fa_admin, b"USDC", 1000000);
+        let usdt_fa = test_fas::mint_fa(&fa_admin, b"USDT", 100000000);
 
         test_pool::mint_liquidity<Stable>(&lp_owner, usdc_fa, usdt_fa);
 
-        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"USDC");
-        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"USDC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
 
-        let usdc_fa_to_exchange = test_coins::mint_fa(&fa_admin, b"USDC", 10000);
+        let usdc_fa_to_exchange = test_fas::mint_fa(&fa_admin, b"USDC", 10000);
         let (zero, usdt_fa) =
             liquidity_pool::swap<Stable>(
                 usdc_fa_to_exchange, 0,
@@ -1855,7 +1937,7 @@ module liquidswap_v05::liquidity_pool_tests {
         assert!(y_res == 99003001, 2);
 
         fungible_asset::destroy_zero(zero);
-        test_coins::burn_fa(&fa_admin, b"USDT", usdt_fa);
+        test_fas::burn_fa(&fa_admin, b"USDT", usdt_fa);
     }
 
     #[test]
@@ -1863,15 +1945,15 @@ module liquidswap_v05::liquidity_pool_tests {
     fun test_swap_coins_with_stable_curve_type_1_unit_fail() {
         let (fa_admin, lp_owner) = setup_usdc_usdt_pool();
 
-        let usdc_fa = test_coins::mint_fa(&fa_admin, b"USDC", 1000000);
-        let usdt_fa = test_coins::mint_fa(&fa_admin, b"USDT", 100000000);
+        let usdc_fa = test_fas::mint_fa(&fa_admin, b"USDC", 1000000);
+        let usdt_fa = test_fas::mint_fa(&fa_admin, b"USDT", 100000000);
 
         test_pool::mint_liquidity<Stable>(&lp_owner, usdc_fa, usdt_fa);
 
-        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"USDC");
-        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"USDC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
 
-        let usdc_fa_to_exchange = test_coins::mint_fa(&fa_admin, b"USDC", 10000);
+        let usdc_fa_to_exchange = test_fas::mint_fa(&fa_admin, b"USDC", 10000);
         let (zero, usdt_fa) =
             liquidity_pool::swap<Stable>(
                 usdc_fa_to_exchange, 0,
@@ -1885,7 +1967,7 @@ module liquidswap_v05::liquidity_pool_tests {
         assert!(y_res == 99003000, 2);
 
         fungible_asset::destroy_zero(zero);
-        test_coins::burn_fa(&fa_admin, b"USDT", usdt_fa);
+        test_fas::burn_fa(&fa_admin, b"USDT", usdt_fa);
     }
 
     #[test]
@@ -1893,15 +1975,15 @@ module liquidswap_v05::liquidity_pool_tests {
     fun test_swap_coins_with_stable_curve_type_fails() {
         let (fa_admin, lp_owner) = setup_usdc_usdt_pool();
 
-        let usdc_fa = test_coins::mint_fa(&fa_admin, b"USDC", 1000000);
-        let usdt_fa = test_coins::mint_fa(&fa_admin, b"USDT", 100000000);
+        let usdc_fa = test_fas::mint_fa(&fa_admin, b"USDC", 1000000);
+        let usdt_fa = test_fas::mint_fa(&fa_admin, b"USDT", 100000000);
 
         test_pool::mint_liquidity<Stable>(&lp_owner, usdc_fa, usdt_fa);
 
-        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"USDC");
-        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"USDC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
 
-        let usdc_fa_to_exchange = test_coins::mint_fa(&fa_admin, b"USDC", 1);
+        let usdc_fa_to_exchange = test_fas::mint_fa(&fa_admin, b"USDC", 1);
         let (zero, usdt_fa) =
             liquidity_pool::swap<Stable>(
                 usdc_fa_to_exchange, 0,
@@ -1915,22 +1997,22 @@ module liquidswap_v05::liquidity_pool_tests {
         assert!(y_res == 99999901, 2);
 
         fungible_asset::destroy_zero(zero);
-        test_coins::burn_fa(&fa_admin, b"USDT", usdt_fa);
+        test_fas::burn_fa(&fa_admin, b"USDT", usdt_fa);
     }
 
     #[test]
     fun test_swap_coins_with_stable_curve_type_vice_versa() {
         let (fa_admin, lp_owner) = setup_usdc_usdt_pool();
 
-        let usdc_fa = test_coins::mint_fa(&fa_admin, b"USDC", 1000000);
-        let usdt_fa = test_coins::mint_fa(&fa_admin, b"USDT", 100000000);
+        let usdc_fa = test_fas::mint_fa(&fa_admin, b"USDC", 1000000);
+        let usdt_fa = test_fas::mint_fa(&fa_admin, b"USDT", 100000000);
 
         test_pool::mint_liquidity<Stable>(&lp_owner, usdc_fa, usdt_fa);
 
-        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"USDC");
-        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"USDC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
 
-        let usdt_fa_to_exchange = test_coins::mint_fa(&fa_admin, b"USDT", 999901);
+        let usdt_fa_to_exchange = test_fas::mint_fa(&fa_admin, b"USDT", 999901);
         let (usdc_fa, zero) =
             liquidity_pool::swap<Stable>(
                 fungible_asset::zero(fa_x_metadata), 9969,
@@ -1944,20 +2026,20 @@ module liquidswap_v05::liquidity_pool_tests {
         assert!(x_res == 990031, 2);
 
         fungible_asset::destroy_zero(zero);
-        test_coins::burn_fa(&fa_admin, b"USDC", usdc_fa);
+        test_fas::burn_fa(&fa_admin, b"USDC", usdc_fa);
     }
 
     #[test]
     fun test_swap_coins_two_coins_with_stable_curve() {
         let (fa_admin, lp_owner) = setup_usdc_usdt_pool();
 
-        let usdc_fa = test_coins::mint_fa(&fa_admin, b"USDC", 1000000);
-        let usdt_fa = test_coins::mint_fa(&fa_admin, b"USDT", 100000000);
+        let usdc_fa = test_fas::mint_fa(&fa_admin, b"USDC", 1000000);
+        let usdt_fa = test_fas::mint_fa(&fa_admin, b"USDT", 100000000);
 
         test_pool::mint_liquidity<Stable>(&lp_owner, usdc_fa, usdt_fa);
 
-        let usdt_fa_to_exchange = test_coins::mint_fa(&fa_admin, b"USDT", 1000000);
-        let usdc_fa_to_exchange = test_coins::mint_fa(&fa_admin, b"USDC", 10000);
+        let usdt_fa_to_exchange = test_fas::mint_fa(&fa_admin, b"USDT", 1000000);
+        let usdc_fa_to_exchange = test_fas::mint_fa(&fa_admin, b"USDC", 10000);
 
         let (usdc_fa, usdt_fa) =
             liquidity_pool::swap<Stable>(
@@ -1968,16 +2050,16 @@ module liquidswap_v05::liquidity_pool_tests {
         assert!(fungible_asset::amount(&usdc_fa) == 9969, 0);
         assert!(fungible_asset::amount(&usdt_fa) == 997099, 1);
 
-        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"USDC");
-        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"USDC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
 
         let (x_res, y_res) =
             liquidity_pool::get_reserves_size<Stable>(fa_x_metadata, fa_y_metadata);
         assert!(x_res == 1000029, 2);
         assert!(y_res == 100002701, 3);
 
-        test_coins::burn_fa(&fa_admin, b"USDC", usdc_fa);
-        test_coins::burn_fa(&fa_admin, b"USDT", usdt_fa);
+        test_fas::burn_fa(&fa_admin, b"USDC", usdc_fa);
+        test_fas::burn_fa(&fa_admin, b"USDT", usdt_fa);
     }
 
     #[test]
@@ -1985,13 +2067,13 @@ module liquidswap_v05::liquidity_pool_tests {
     fun test_swap_coins_two_coins_with_stable_curve_fail() {
         let (fa_admin, lp_owner) = setup_usdc_usdt_pool();
 
-        let usdc_fa = test_coins::mint_fa(&fa_admin, b"USDC", 1000000);
-        let usdt_fa = test_coins::mint_fa(&fa_admin, b"USDT", 100000000);
+        let usdc_fa = test_fas::mint_fa(&fa_admin, b"USDC", 1000000);
+        let usdt_fa = test_fas::mint_fa(&fa_admin, b"USDT", 100000000);
 
         test_pool::mint_liquidity<Stable>(&lp_owner, usdc_fa, usdt_fa);
 
-        let usdt_fa_to_exchange = test_coins::mint_fa(&fa_admin, b"USDT", 1000000);
-        let usdc_fa_to_exchange = test_coins::mint_fa(&fa_admin, b"USDC", 10000);
+        let usdt_fa_to_exchange = test_fas::mint_fa(&fa_admin, b"USDT", 1000000);
+        let usdc_fa_to_exchange = test_fas::mint_fa(&fa_admin, b"USDC", 10000);
 
         let (usdc_fa, usdt_fa) =
             liquidity_pool::swap<Stable>(
@@ -2002,30 +2084,30 @@ module liquidswap_v05::liquidity_pool_tests {
         assert!(fungible_asset::amount(&usdc_fa) == 9996, 0);
         assert!(fungible_asset::amount(&usdt_fa) == 999699, 1);
 
-        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"USDC");
-        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"USDC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
 
         let (x_res, y_res) =
             liquidity_pool::get_reserves_size<Stable>(fa_x_metadata, fa_y_metadata);
         assert!(x_res == 1000020, 2);
         assert!(y_res == 100001901, 3);
 
-        test_coins::burn_fa(&fa_admin, b"USDC", usdc_fa);
-        test_coins::burn_fa(&fa_admin, b"USDT", usdt_fa);
+        test_fas::burn_fa(&fa_admin, b"USDC", usdc_fa);
+        test_fas::burn_fa(&fa_admin, b"USDT", usdt_fa);
     }
 
     #[test]
     fun test_swap_coins_with_stable_curve_type_vice_versa_1() {
         let (fa_admin, lp_owner) = setup_usdc_usdt_pool();
 
-        let usdc_fa = test_coins::mint_fa(&fa_admin, b"USDC", 15000000000);
-        let usdt_fa = test_coins::mint_fa(&fa_admin, b"USDT", 1500000000000);
+        let usdc_fa = test_fas::mint_fa(&fa_admin, b"USDC", 15000000000);
+        let usdt_fa = test_fas::mint_fa(&fa_admin, b"USDT", 1500000000000);
 
         test_pool::mint_liquidity<Stable>(&lp_owner, usdc_fa, usdt_fa);
 
-        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"USDC");
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"USDC");
 
-        let usdt_fa_to_exchange = test_coins::mint_fa(&fa_admin, b"USDT", 125804314);
+        let usdt_fa_to_exchange = test_fas::mint_fa(&fa_admin, b"USDT", 125804314);
         let (usdc_fa, zero) =
             liquidity_pool::swap<Stable>(
                 fungible_asset::zero(fa_x_metadata), 1254269,
@@ -2034,7 +2116,7 @@ module liquidswap_v05::liquidity_pool_tests {
         assert!(fungible_asset::amount(&usdc_fa) == 1254269, 0);
 
         fungible_asset::destroy_zero(zero);
-        test_coins::burn_fa(&fa_admin, b"USDC", usdc_fa);
+        test_fas::burn_fa(&fa_admin, b"USDC", usdc_fa);
     }
 
     #[test]
@@ -2042,15 +2124,15 @@ module liquidswap_v05::liquidity_pool_tests {
     fun test_swap_coins_with_stable_curve_type_vice_versa_fail() {
         let (fa_admin, lp_owner) = setup_usdc_usdt_pool();
 
-        let usdc_fa = test_coins::mint_fa(&fa_admin, b"USDC", 1000000);
-        let usdt_fa = test_coins::mint_fa(&fa_admin, b"USDT", 100000000);
+        let usdc_fa = test_fas::mint_fa(&fa_admin, b"USDC", 1000000);
+        let usdt_fa = test_fas::mint_fa(&fa_admin, b"USDT", 100000000);
 
         test_pool::mint_liquidity<Stable>(&lp_owner, usdc_fa, usdt_fa);
 
-        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"USDC");
-        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"USDC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
 
-        let usdt_fa_to_exchange = test_coins::mint_fa(&fa_admin, b"USDT", 1000000);
+        let usdt_fa_to_exchange = test_fas::mint_fa(&fa_admin, b"USDT", 1000000);
         let (usdc_fa, zero) =
             liquidity_pool::swap<Stable>(
                 fungible_asset::zero(fa_x_metadata), 9996,
@@ -2064,7 +2146,7 @@ module liquidswap_v05::liquidity_pool_tests {
         assert!(x_res == 990030, 2);
 
         fungible_asset::destroy_zero(zero);
-        test_coins::burn_fa(&fa_admin, b"USDC", usdc_fa);
+        test_fas::burn_fa(&fa_admin, b"USDC", usdc_fa);
     }
 
     #[test]
@@ -2072,14 +2154,14 @@ module liquidswap_v05::liquidity_pool_tests {
     fun test_swap_wrong_fa_ordering() {
         let (fa_admin, lp_owner) = setup_btc_usdt_pool();
 
-        let btc_fa = test_coins::mint_fa(&fa_admin, b"BTC", 100100);
-        let usdt_fa = test_coins::mint_fa(&fa_admin, b"USDT", 100100);
+        let btc_fa = test_fas::mint_fa(&fa_admin, b"BTC", 100100);
+        let usdt_fa = test_fas::mint_fa(&fa_admin, b"USDT", 100100);
 
         test_pool::mint_liquidity<Uncorrelated>(&lp_owner, btc_fa, usdt_fa);
 
-        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
 
-        let btc_fa_to_exchange = test_coins::mint_fa(&fa_admin, b"BTC", 2);
+        let btc_fa_to_exchange = test_fas::mint_fa(&fa_admin, b"BTC", 2);
         let (zero, usdt_fa) =
             liquidity_pool::swap<Uncorrelated>(
                 fungible_asset::zero(fa_y_metadata), 0,
@@ -2087,7 +2169,7 @@ module liquidswap_v05::liquidity_pool_tests {
             );
 
         fungible_asset::destroy_zero(zero);
-        test_coins::burn_fa(&fa_admin, b"USDT", usdt_fa);
+        test_fas::burn_fa(&fa_admin, b"USDT", usdt_fa);
     }
 
     // Getters.
@@ -2099,8 +2181,8 @@ module liquidswap_v05::liquidity_pool_tests {
 
         emergency::pause(&emergency_acc);
 
-        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"BTC");
-        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"BTC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
 
         let (_, _) = liquidity_pool::get_reserves_size<Uncorrelated>(fa_x_metadata, fa_y_metadata);
     }
@@ -2112,8 +2194,8 @@ module liquidswap_v05::liquidity_pool_tests {
 
         emergency::pause(&emergency_acc);
 
-        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"BTC");
-        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"BTC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
 
         let (_, _, _) = liquidity_pool::get_cumulative_prices<Uncorrelated>(fa_x_metadata, fa_y_metadata);
     }
@@ -2122,9 +2204,9 @@ module liquidswap_v05::liquidity_pool_tests {
     fun test_pool_exists() {
         let (_, _) = setup_btc_usdt_pool();
 
-        let btc_metadata = test_coins::get_fa_metadata_from_symbol(b"BTC");
-        let usdc_metadata = test_coins::get_fa_metadata_from_symbol(b"USDC");
-        let usdt_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+        let btc_metadata = test_fas::get_fa_metadata_from_symbol(b"BTC");
+        let usdc_metadata = test_fas::get_fa_metadata_from_symbol(b"USDC");
+        let usdt_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
 
         assert!(liquidity_pool::is_pool_exists<Uncorrelated>(btc_metadata, usdt_metadata), 0);
         assert!(!liquidity_pool::is_pool_exists<Uncorrelated>(usdc_metadata, usdt_metadata), 1);
@@ -2134,8 +2216,8 @@ module liquidswap_v05::liquidity_pool_tests {
     fun test_fees_config() {
         setup_btc_usdt_pool();
 
-        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"BTC");
-        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"BTC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
 
         let (fee_pct, fee_scale) =
             liquidity_pool::get_fees_config<Uncorrelated>(fa_x_metadata, fa_y_metadata);
@@ -2150,16 +2232,16 @@ module liquidswap_v05::liquidity_pool_tests {
     fun test_end_to_end() {
         let (fa_admin, _) = setup_btc_usdt_pool();
 
-        let btc_fa_initial = test_coins::mint_fa(&fa_admin, b"BTC", 10000000000);
-        let usdt_fa_initial = test_coins::mint_fa(&fa_admin, b"USDT", 2800000000000);
+        let btc_fa_initial = test_fas::mint_fa(&fa_admin, b"BTC", 10000000000);
+        let usdt_fa_initial = test_fas::mint_fa(&fa_admin, b"USDT", 2800000000000);
 
         timestamp::fast_forward_seconds(1660545565);
 
         let lp_fa_initial =
             liquidity_pool::mint<Uncorrelated>(btc_fa_initial, usdt_fa_initial);
 
-        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"BTC");
-        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"BTC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
 
         let (x_res, y_res) =
             liquidity_pool::get_reserves_size<Uncorrelated>(fa_x_metadata, fa_y_metadata);
@@ -2172,8 +2254,8 @@ module liquidswap_v05::liquidity_pool_tests {
         assert!(y_cum_price == 0, 3);
         assert!(ts == 1660545565, 4);
 
-        let btc_fa_user = test_coins::mint_fa(&fa_admin, b"BTC", 1500000000);
-        let usdt_fa_user = test_coins::mint_fa(&fa_admin, b"USDT", 420000000000);
+        let btc_fa_user = test_fas::mint_fa(&fa_admin, b"BTC", 1500000000);
+        let usdt_fa_user = test_fas::mint_fa(&fa_admin, b"USDT", 420000000000);
 
         let lp_fa_user =
             liquidity_pool::mint<Uncorrelated>(btc_fa_user, usdt_fa_user);
@@ -2191,7 +2273,7 @@ module liquidswap_v05::liquidity_pool_tests {
 
         timestamp::fast_forward_seconds(3600);
 
-        let btc_fa_to_exchange = test_coins::mint_fa(&fa_admin, b"BTC", 2500000000);
+        let btc_fa_to_exchange = test_fas::mint_fa(&fa_admin, b"BTC", 2500000000);
         let (btc_zero, usdt_fa) =
             liquidity_pool::swap<Uncorrelated>(
                 btc_fa_to_exchange, 0,
@@ -2223,8 +2305,8 @@ module liquidswap_v05::liquidity_pool_tests {
         assert!(fungible_asset::amount(&btc_earned_user) == 912880434, 15);
         assert!(fungible_asset::amount(&usdt_earned_user) == 172592460234, 16);
 
-        test_coins::burn_fa(&fa_admin, b"BTC", btc_earned_user);
-        test_coins::burn_fa(&fa_admin, b"USDT", usdt_earned_user);
+        test_fas::burn_fa(&fa_admin, b"BTC", btc_earned_user);
+        test_fas::burn_fa(&fa_admin, b"USDT", usdt_earned_user);
 
         let (x_res, y_res) =
             liquidity_pool::get_reserves_size<Uncorrelated>(fa_x_metadata, fa_y_metadata);
@@ -2239,7 +2321,7 @@ module liquidswap_v05::liquidity_pool_tests {
 
         timestamp::fast_forward_seconds(3600);
 
-        let usdt_fa_to_exchange = test_coins::mint_fa(&fa_admin, b"USDT", 10000000000);
+        let usdt_fa_to_exchange = test_fas::mint_fa(&fa_admin, b"USDT", 10000000000);
         let (btc_fa, usdt_zero) =
             liquidity_pool::swap<Uncorrelated>(
                 fungible_asset::zero(fa_x_metadata), 52521904,
@@ -2295,28 +2377,28 @@ module liquidswap_v05::liquidity_pool_tests {
 
         fungible_asset::destroy_zero(btc_zero);
         fungible_asset::destroy_zero(usdt_zero);
-        test_coins::burn_fa(&fa_admin, b"BTC", btc_fa);
-        test_coins::burn_fa(&fa_admin, b"USDT", usdt_fa);
-        test_coins::burn_fa(&fa_admin, b"BTC", btc_earned_user);
-        test_coins::burn_fa(&fa_admin, b"USDT", usdt_earned_user);
-        test_coins::burn_fa(&fa_admin, b"BTC", btc_earned_initial);
-        test_coins::burn_fa(&fa_admin, b"USDT", usdt_earned_initial);
+        test_fas::burn_fa(&fa_admin, b"BTC", btc_fa);
+        test_fas::burn_fa(&fa_admin, b"USDT", usdt_fa);
+        test_fas::burn_fa(&fa_admin, b"BTC", btc_earned_user);
+        test_fas::burn_fa(&fa_admin, b"USDT", usdt_earned_user);
+        test_fas::burn_fa(&fa_admin, b"BTC", btc_earned_initial);
+        test_fas::burn_fa(&fa_admin, b"USDT", usdt_earned_initial);
     }
 
     #[test(emergency_acc = @emergency_admin)]
     fun test_end_to_end_emergency(emergency_acc: signer) {
         let (fa_admin, _) = setup_btc_usdt_pool();
 
-        let btc_fa_initial = test_coins::mint_fa(&fa_admin, b"BTC", 10000000000);
-        let usdt_fa_initial = test_coins::mint_fa(&fa_admin, b"USDT", 2800000000000);
+        let btc_fa_initial = test_fas::mint_fa(&fa_admin, b"BTC", 10000000000);
+        let usdt_fa_initial = test_fas::mint_fa(&fa_admin, b"USDT", 2800000000000);
 
         timestamp::fast_forward_seconds(1660545565);
 
         let lp_fa_initial =
             liquidity_pool::mint<Uncorrelated>(btc_fa_initial, usdt_fa_initial);
 
-        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"BTC");
-        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"BTC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
 
         let (x_res, y_res) =
             liquidity_pool::get_reserves_size<Uncorrelated>(fa_x_metadata, fa_y_metadata);
@@ -2329,8 +2411,8 @@ module liquidswap_v05::liquidity_pool_tests {
         assert!(y_cum_price == 0, 3);
         assert!(ts == 1660545565, 4);
 
-        let btc_fa_user = test_coins::mint_fa(&fa_admin, b"BTC", 1500000000);
-        let usdt_fa_user = test_coins::mint_fa(&fa_admin, b"USDT", 420000000000);
+        let btc_fa_user = test_fas::mint_fa(&fa_admin, b"BTC", 1500000000);
+        let usdt_fa_user = test_fas::mint_fa(&fa_admin, b"USDT", 420000000000);
 
         let lp_fa_user =
             liquidity_pool::mint<Uncorrelated>(btc_fa_user, usdt_fa_user);
@@ -2348,7 +2430,7 @@ module liquidswap_v05::liquidity_pool_tests {
 
         timestamp::fast_forward_seconds(3600);
 
-        let btc_fa_to_exchange = test_coins::mint_fa(&fa_admin, b"BTC", 2500000000);
+        let btc_fa_to_exchange = test_fas::mint_fa(&fa_admin, b"BTC", 2500000000);
         let (btc_zero, usdt_fa) =
             liquidity_pool::swap<Uncorrelated>(
                 btc_fa_to_exchange, 0,
@@ -2380,8 +2462,8 @@ module liquidswap_v05::liquidity_pool_tests {
         assert!(fungible_asset::amount(&btc_earned_user) == 912880434, 16);
         assert!(fungible_asset::amount(&usdt_earned_user) == 172592460234, 17);
 
-        test_coins::burn_fa(&fa_admin, b"BTC", btc_earned_user);
-        test_coins::burn_fa(&fa_admin, b"USDT", usdt_earned_user);
+        test_fas::burn_fa(&fa_admin, b"BTC", btc_earned_user);
+        test_fas::burn_fa(&fa_admin, b"USDT", usdt_earned_user);
 
         emergency::resume(&emergency_acc);
 
@@ -2398,7 +2480,7 @@ module liquidswap_v05::liquidity_pool_tests {
 
         timestamp::fast_forward_seconds(3600);
 
-        let usdt_fa_to_exchange = test_coins::mint_fa(&fa_admin, b"USDT", 10000000000);
+        let usdt_fa_to_exchange = test_fas::mint_fa(&fa_admin, b"USDT", 10000000000);
         let (btc_fa, usdt_zero) =
             liquidity_pool::swap<Uncorrelated>(
                 fungible_asset::zero(fa_x_metadata), 52521904,
@@ -2453,12 +2535,12 @@ module liquidswap_v05::liquidity_pool_tests {
 
         fungible_asset::destroy_zero(btc_zero);
         fungible_asset::destroy_zero(usdt_zero);
-        test_coins::burn_fa(&fa_admin, b"BTC", btc_fa);
-        test_coins::burn_fa(&fa_admin, b"USDT", usdt_fa);
-        test_coins::burn_fa(&fa_admin, b"BTC", btc_earned_user);
-        test_coins::burn_fa(&fa_admin, b"USDT", usdt_earned_user);
-        test_coins::burn_fa(&fa_admin, b"BTC", btc_earned_initial);
-        test_coins::burn_fa(&fa_admin, b"USDT", usdt_earned_initial);
+        test_fas::burn_fa(&fa_admin, b"BTC", btc_fa);
+        test_fas::burn_fa(&fa_admin, b"USDT", usdt_fa);
+        test_fas::burn_fa(&fa_admin, b"BTC", btc_earned_user);
+        test_fas::burn_fa(&fa_admin, b"USDT", usdt_earned_user);
+        test_fas::burn_fa(&fa_admin, b"BTC", btc_earned_initial);
+        test_fas::burn_fa(&fa_admin, b"USDT", usdt_earned_initial);
     }
 
     // Compute LP
@@ -2735,10 +2817,10 @@ module liquidswap_v05::liquidity_pool_tests {
 
         timestamp::fast_forward_seconds(1660545565);
 
-        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"BTC");
-        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"BTC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
 
-        let (x_cum_price, y_cum_price, ts) = liquidity_pool::update_cumulative_price_for_test<BTC, USDT>(
+        let (x_cum_price, y_cum_price, ts) = liquidity_pool::update_cumulative_price_for_test(
             &lp_owner,
             1660545565 - 3600,
             18446744073709551615,
@@ -2760,10 +2842,10 @@ module liquidswap_v05::liquidity_pool_tests {
 
         timestamp::fast_forward_seconds(1660545565);
 
-        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"BTC");
-        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"BTC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
 
-        let (x_cum_price, y_cum_price, ts) = liquidity_pool::update_cumulative_price_for_test<BTC, USDT>(
+        let (x_cum_price, y_cum_price, ts) = liquidity_pool::update_cumulative_price_for_test(
             &lp_owner,
             1660545565 - 3600,
             0,
@@ -2785,10 +2867,10 @@ module liquidswap_v05::liquidity_pool_tests {
 
         timestamp::fast_forward_seconds(1660545565);
 
-        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"BTC");
-        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"BTC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
 
-        let (x_cum_price, y_cum_price, ts) = liquidity_pool::update_cumulative_price_for_test<BTC, USDT>(
+        let (x_cum_price, y_cum_price, ts) = liquidity_pool::update_cumulative_price_for_test(
             &lp_owner,
             0,
             10,
@@ -2810,10 +2892,10 @@ module liquidswap_v05::liquidity_pool_tests {
 
         timestamp::fast_forward_seconds(3600);
 
-        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"BTC");
-        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"BTC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
 
-        let (x_cum_price, y_cum_price, ts) = liquidity_pool::update_cumulative_price_for_test<BTC, USDT>(
+        let (x_cum_price, y_cum_price, ts) = liquidity_pool::update_cumulative_price_for_test(
             &lp_owner,
             0,
             0,
@@ -2835,10 +2917,10 @@ module liquidswap_v05::liquidity_pool_tests {
 
         timestamp::update_global_time_for_test(18446744073709551615);
 
-        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"BTC");
-        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"BTC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
 
-        let (x_cum_price, y_cum_price, ts) = liquidity_pool::update_cumulative_price_for_test<BTC, USDT>(
+        let (x_cum_price, y_cum_price, ts) = liquidity_pool::update_cumulative_price_for_test(
             &lp_owner,
             0,
             18446744073709551615,
@@ -2860,10 +2942,10 @@ module liquidswap_v05::liquidity_pool_tests {
 
         timestamp::fast_forward_seconds(1);
 
-        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"BTC");
-        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"BTC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
 
-        let (x_cum_price, y_cum_price, ts) = liquidity_pool::update_cumulative_price_for_test<BTC, USDT>(
+        let (x_cum_price, y_cum_price, ts) = liquidity_pool::update_cumulative_price_for_test(
             &lp_owner,
             0,
             340282366920938463463374607431768211455,
@@ -2885,10 +2967,10 @@ module liquidswap_v05::liquidity_pool_tests {
 
         timestamp::update_global_time_for_test(18446744073709551615);
 
-        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"BTC");
-        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"BTC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
 
-        let (x_cum_price, y_cum_price, ts) = liquidity_pool::update_cumulative_price_for_test<BTC, USDT>(
+        let (x_cum_price, y_cum_price, ts) = liquidity_pool::update_cumulative_price_for_test(
             &lp_owner,
             0,
             340282366920938463463374607431768211455,
@@ -2911,8 +2993,8 @@ module liquidswap_v05::liquidity_pool_tests {
     fun test_fail_if_invalid_curve_is_passed() {
         let (_, lp_owner) = test_pool::setup_fa_and_lp_owner();
 
-        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"BTC");
-        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"BTC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
 
         liquidity_pool::register<InvalidCurve>(&lp_owner, fa_x_metadata, fa_y_metadata);
     }
@@ -2930,8 +3012,8 @@ module liquidswap_v05::liquidity_pool_tests {
     fun test_get_fee_fail_if_pair_is_not_sorted() {
         let (_, lp_owner) = test_pool::setup_fa_and_lp_owner();
 
-        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"BTC");
-        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"BTC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
 
         liquidity_pool::register<Uncorrelated>(&lp_owner, fa_x_metadata, fa_y_metadata);
         let _ = liquidity_pool::get_fee<Uncorrelated>(fa_y_metadata, fa_x_metadata);
@@ -2940,10 +3022,10 @@ module liquidswap_v05::liquidity_pool_tests {
     #[test]
     #[expected_failure(abort_code = liquidity_pool::ERR_POOL_DOES_NOT_EXIST)]
     fun test_get_fee_fail_if_pool_does_not_exists() {
-        let _ = test_coins::create_admin_with_fas();
+        let _ = test_fas::create_admin_with_fas();
 
-        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"BTC");
-        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"BTC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
 
         let _ = liquidity_pool::get_fee<Uncorrelated>(fa_x_metadata, fa_y_metadata);
     }
@@ -2953,8 +3035,8 @@ module liquidswap_v05::liquidity_pool_tests {
     fun test_set_fee_fail_if_pair_is_not_sorted(fee_admin: signer) {
         let (_, lp_owner) = test_pool::setup_fa_and_lp_owner();
 
-        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"BTC");
-        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"BTC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
 
         liquidity_pool::register<Uncorrelated>(&lp_owner, fa_x_metadata, fa_y_metadata);
         liquidity_pool::set_fee<Uncorrelated>(&fee_admin, 10, fa_y_metadata, fa_x_metadata);
@@ -2963,10 +3045,10 @@ module liquidswap_v05::liquidity_pool_tests {
     #[test(fee_admin = @fee_admin)]
     #[expected_failure(abort_code = liquidity_pool::ERR_POOL_DOES_NOT_EXIST)]
     fun test_set_fee_fail_if_pool_does_not_exists(fee_admin: signer) {
-        let _ = test_coins::create_admin_with_fas();
+        let _ = test_fas::create_admin_with_fas();
 
-        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"BTC");
-        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"BTC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
 
         liquidity_pool::set_fee<Uncorrelated>(&fee_admin, 10, fa_x_metadata, fa_y_metadata);
     }
@@ -2976,8 +3058,8 @@ module liquidswap_v05::liquidity_pool_tests {
     fun test_set_fee_fail_if_user_is_not_admin() {
         let (fa_admin, lp_owner) = test_pool::setup_fa_and_lp_owner();
 
-        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"BTC");
-        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"BTC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
 
         liquidity_pool::register<Uncorrelated>(&lp_owner, fa_x_metadata, fa_y_metadata);
         liquidity_pool::set_fee<Uncorrelated>(&fa_admin, 10, fa_x_metadata, fa_y_metadata);
@@ -2988,8 +3070,8 @@ module liquidswap_v05::liquidity_pool_tests {
     fun test_set_fee_fail_if_invalid_amount_of_fee(fee_admin: signer) {
         let (_, lp_owner) = test_pool::setup_fa_and_lp_owner();
 
-        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"BTC");
-        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"BTC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
 
         liquidity_pool::register<Uncorrelated>(&lp_owner, fa_x_metadata, fa_y_metadata);
         liquidity_pool::set_fee<Uncorrelated>(&fee_admin, 0, fa_x_metadata, fa_y_metadata);
@@ -3000,8 +3082,8 @@ module liquidswap_v05::liquidity_pool_tests {
     fun test_get_dao_fee_fail_if_pair_is_not_sorted() {
         let (_, lp_owner) = test_pool::setup_fa_and_lp_owner();
 
-        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"BTC");
-        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"BTC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
 
         liquidity_pool::register<Uncorrelated>(&lp_owner, fa_x_metadata, fa_y_metadata);
         let _ = liquidity_pool::get_dao_fee<Uncorrelated>(fa_y_metadata, fa_x_metadata);
@@ -3010,10 +3092,10 @@ module liquidswap_v05::liquidity_pool_tests {
     #[test]
     #[expected_failure(abort_code = liquidity_pool::ERR_POOL_DOES_NOT_EXIST)]
     fun test_get_dao_fee_fail_if_pool_does_not_exists() {
-        let _ = test_coins::create_admin_with_fas();
+        let _ = test_fas::create_admin_with_fas();
 
-        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"BTC");
-        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"BTC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
 
         let _ = liquidity_pool::get_dao_fee<Uncorrelated>(fa_x_metadata, fa_y_metadata);
     }
@@ -3023,8 +3105,8 @@ module liquidswap_v05::liquidity_pool_tests {
     fun test_set_dao_fee_fail_if_pair_is_not_sorted(dao_admin: signer) {
         let (_, lp_owner) = test_pool::setup_fa_and_lp_owner();
 
-        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"BTC");
-        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"BTC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
 
         liquidity_pool::register<Uncorrelated>(&lp_owner, fa_x_metadata, fa_y_metadata);
         liquidity_pool::set_dao_fee<Uncorrelated>(
@@ -3038,10 +3120,10 @@ module liquidswap_v05::liquidity_pool_tests {
     #[test(dao_admin = @dao_admin)]
     #[expected_failure(abort_code = liquidity_pool::ERR_POOL_DOES_NOT_EXIST)]
     fun test_set_dao_fee_fail_if_pool_does_not_exists(dao_admin: signer) {
-        let _ = test_coins::create_admin_with_fas();
+        let _ = test_fas::create_admin_with_fas();
 
-        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"BTC");
-        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"BTC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
 
         liquidity_pool::set_dao_fee<Uncorrelated>(
             &dao_admin,
@@ -3056,8 +3138,8 @@ module liquidswap_v05::liquidity_pool_tests {
     fun test_set_dao_fee_fail_if_user_is_not_admin() {
         let (fa_admin, lp_owner) = test_pool::setup_fa_and_lp_owner();
 
-        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"BTC");
-        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"BTC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
 
         liquidity_pool::register<Uncorrelated>(&lp_owner, fa_x_metadata, fa_y_metadata);
         liquidity_pool::set_dao_fee<Uncorrelated>(
@@ -3073,8 +3155,8 @@ module liquidswap_v05::liquidity_pool_tests {
     fun test_set_dao_fee_fail_if_invalid_amount_of_fee(fee_admin: signer) {
         let (_, lp_owner) = test_pool::setup_fa_and_lp_owner();
 
-        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"BTC");
-        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"BTC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
 
         liquidity_pool::register<Uncorrelated>(&lp_owner, fa_x_metadata, fa_y_metadata);
         liquidity_pool::set_dao_fee<Uncorrelated>(&fee_admin, 101, fa_x_metadata, fa_y_metadata);
@@ -3085,8 +3167,8 @@ module liquidswap_v05::liquidity_pool_tests {
     fun test_cannot_fetch_fees_config_with_unsorted_generics() {
         let (_, _) = setup_btc_usdt_pool();
 
-        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"BTC");
-        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"BTC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
 
         let (_, _) = liquidity_pool::get_fees_config<Uncorrelated>(fa_y_metadata, fa_x_metadata);
     }
@@ -3095,8 +3177,8 @@ module liquidswap_v05::liquidity_pool_tests {
     fun test_get_fee_config(fee_admin: signer, dao_admin: signer) {
         let (_, _) = setup_btc_usdt_pool();
 
-        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"BTC");
-        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"BTC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
 
         let (fee, d) =
             liquidity_pool::get_fees_config<Uncorrelated>(fa_x_metadata, fa_y_metadata);
@@ -3134,8 +3216,8 @@ module liquidswap_v05::liquidity_pool_tests {
     fun test_get_stable_fee_config(fee_admin: signer, dao_admin: signer) {
         let (_, _) = setup_usdc_usdt_pool();
 
-        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"USDC");
-        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"USDC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
 
         let (fee, d) = liquidity_pool::get_fees_config<Stable>(fa_x_metadata, fa_y_metadata);
         assert!(fee == 4, 1);
@@ -3170,8 +3252,8 @@ module liquidswap_v05::liquidity_pool_tests {
     fun test_dao_fee_config(fee_admin: signer, dao_admin: signer) {
         let (_, _) = setup_btc_usdt_pool();
 
-        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"BTC");
-        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"BTC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
 
         let fee = liquidity_pool::get_dao_fee<Uncorrelated>(fa_x_metadata, fa_y_metadata);
         assert!(fee == 33, 1);
@@ -3199,8 +3281,8 @@ module liquidswap_v05::liquidity_pool_tests {
     fun test_get_dao_fees_config(fee_admin: signer, dao_admin: signer) {
         let (_, _) = setup_btc_usdt_pool();
 
-        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"BTC");
-        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"BTC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
 
         let (fee, d) =
             liquidity_pool::get_dao_fees_config<Uncorrelated>(fa_x_metadata, fa_y_metadata);
@@ -3225,10 +3307,10 @@ module liquidswap_v05::liquidity_pool_tests {
     #[test]
     #[expected_failure(abort_code = liquidity_pool::ERR_POOL_DOES_NOT_EXIST)]
     fun test_get_dao_fees_config_fail_doesnt_exists() {
-        let _ = test_coins::create_admin_with_fas();
+        let _ = test_fas::create_admin_with_fas();
 
-        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"BTC");
-        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"BTC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
 
         let (_, _) =
             liquidity_pool::get_dao_fees_config<Uncorrelated>(fa_x_metadata, fa_y_metadata);
@@ -3239,8 +3321,8 @@ module liquidswap_v05::liquidity_pool_tests {
     fun test_get_dao_fees_config_fails_wrong_ordering() {
         let (_, _) = setup_btc_usdt_pool();
 
-        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"BTC");
-        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"BTC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
 
         let (_fee, _d) = liquidity_pool::get_dao_fees_config<Uncorrelated>(fa_y_metadata, fa_x_metadata);
     }
@@ -3250,8 +3332,8 @@ module liquidswap_v05::liquidity_pool_tests {
     fun test_get_fees_config_fails_wrong_ordering() {
         let (_, _) = setup_btc_usdt_pool();
 
-        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"BTC");
-        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"BTC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
 
         let (_fee, _d) = liquidity_pool::get_dao_fees_config<Uncorrelated>(fa_y_metadata, fa_x_metadata);
     }
@@ -3263,8 +3345,8 @@ module liquidswap_v05::liquidity_pool_tests {
         global_config::set_default_fee<Uncorrelated>(&fee_admin, 33);
         global_config::set_default_dao_fee(&fee_admin, 66);
 
-        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"BTC");
-        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"BTC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
 
         liquidity_pool::register<Uncorrelated>(&lp_owner, fa_x_metadata, fa_y_metadata);
 
@@ -3284,8 +3366,8 @@ module liquidswap_v05::liquidity_pool_tests {
         global_config::set_default_fee<Stable>(&fee_admin, 6);
         global_config::set_default_dao_fee(&fee_admin, 66);
 
-        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"USDC");
-        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"USDC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
 
         liquidity_pool::register<Stable>(&lp_owner, fa_x_metadata, fa_y_metadata);
 
@@ -3305,17 +3387,17 @@ module liquidswap_v05::liquidity_pool_tests {
         global_config::set_default_fee<Uncorrelated>(&fee_admin, 1);
         global_config::set_default_dao_fee(&fee_admin, 0);
 
-        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"BTC");
-        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"BTC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
 
         liquidity_pool::register<Uncorrelated>(&lp_owner, fa_x_metadata, fa_y_metadata);
 
-        let btc_fa = test_coins::mint_fa(&fa_admin, b"BTC", 100000000);
-        let usdt_fa = test_coins::mint_fa(&fa_admin, b"USDT", 28000000000);
+        let btc_fa = test_fas::mint_fa(&fa_admin, b"BTC", 100000000);
+        let usdt_fa = test_fas::mint_fa(&fa_admin, b"USDT", 28000000000);
 
         test_pool::mint_liquidity<Uncorrelated>(&lp_owner, btc_fa, usdt_fa);
 
-        let btc_fa_to_exchange = test_coins::mint_fa(&fa_admin, b"BTC", 100000);
+        let btc_fa_to_exchange = test_fas::mint_fa(&fa_admin, b"BTC", 100000);
         let (zero, usdt_fa) =
             liquidity_pool::swap<Uncorrelated>(
                 btc_fa_to_exchange, 0,
@@ -3329,7 +3411,7 @@ module liquidswap_v05::liquidity_pool_tests {
         assert!(y_res == 27972030767, 2);
 
         fungible_asset::destroy_zero(zero);
-        test_coins::burn_fa(&fa_admin, b"USDT", usdt_fa);
+        test_fas::burn_fa(&fa_admin, b"USDT", usdt_fa);
     }
 
     #[test(fee_admin = @fee_admin)]
@@ -3339,17 +3421,17 @@ module liquidswap_v05::liquidity_pool_tests {
         global_config::set_default_fee<Uncorrelated>(&fee_admin, 35);
         global_config::set_default_dao_fee(&fee_admin, 100);
 
-        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"BTC");
-        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"BTC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
 
         liquidity_pool::register<Uncorrelated>(&lp_owner, fa_x_metadata, fa_y_metadata);
 
-        let btc_fa = test_coins::mint_fa(&fa_admin, b"BTC", 100000000);
-        let usdt_fa = test_coins::mint_fa(&fa_admin, b"USDT", 28000000000);
+        let btc_fa = test_fas::mint_fa(&fa_admin, b"BTC", 100000000);
+        let usdt_fa = test_fas::mint_fa(&fa_admin, b"USDT", 28000000000);
 
         test_pool::mint_liquidity<Uncorrelated>(&lp_owner, btc_fa, usdt_fa);
 
-        let btc_fa_to_exchange = test_coins::mint_fa(&fa_admin, b"BTC", 100000);
+        let btc_fa_to_exchange = test_fas::mint_fa(&fa_admin, b"BTC", 100000);
         let (zero, usdt_fa) =
             liquidity_pool::swap<Uncorrelated>(
                 btc_fa_to_exchange, 0,
@@ -3363,7 +3445,7 @@ module liquidswap_v05::liquidity_pool_tests {
         assert!(y_res == 27972125777, 2);
 
         fungible_asset::destroy_zero(zero);
-        test_coins::burn_fa(&fa_admin, b"USDT", usdt_fa);
+        test_fas::burn_fa(&fa_admin, b"USDT", usdt_fa);
     }
 
     #[test(fee_admin = @fee_admin)]
@@ -3373,17 +3455,17 @@ module liquidswap_v05::liquidity_pool_tests {
         global_config::set_default_fee<Stable>(&fee_admin, 1);
         global_config::set_default_dao_fee(&fee_admin, 0);
 
-        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"USDC");
-        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"USDC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
 
         liquidity_pool::register<Stable>(&lp_owner, fa_x_metadata, fa_y_metadata);
 
-        let usdc_fa = test_coins::mint_fa(&fa_admin, b"USDC", 100000000);
-        let usdt_fa = test_coins::mint_fa(&fa_admin, b"USDT", 10000000000);
+        let usdc_fa = test_fas::mint_fa(&fa_admin, b"USDC", 100000000);
+        let usdt_fa = test_fas::mint_fa(&fa_admin, b"USDT", 10000000000);
 
         test_pool::mint_liquidity<Stable>(&lp_owner, usdc_fa, usdt_fa);
 
-        let usdc_fa_to_exchange = test_coins::mint_fa(&fa_admin, b"USDC", 100000);
+        let usdc_fa_to_exchange = test_fas::mint_fa(&fa_admin, b"USDC", 100000);
         let (zero, usdt_fa) =
             liquidity_pool::swap<Stable>(
                 usdc_fa_to_exchange, 0,
@@ -3397,7 +3479,7 @@ module liquidswap_v05::liquidity_pool_tests {
         assert!(y_res == 9990001001, 2);
 
         fungible_asset::destroy_zero(zero);
-        test_coins::burn_fa(&fa_admin, b"USDT", usdt_fa);
+        test_fas::burn_fa(&fa_admin, b"USDT", usdt_fa);
     }
 
     #[test(fee_admin = @fee_admin)]
@@ -3407,17 +3489,17 @@ module liquidswap_v05::liquidity_pool_tests {
         global_config::set_default_fee<Stable>(&fee_admin, 35);
         global_config::set_default_dao_fee(&fee_admin, 100);
 
-        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"USDC");
-        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"USDC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
 
         liquidity_pool::register<Stable>(&lp_owner, fa_x_metadata, fa_y_metadata);
 
-        let usdc_fa = test_coins::mint_fa(&fa_admin, b"USDC", 100000000);
-        let usdt_fa = test_coins::mint_fa(&fa_admin, b"USDT", 10000000000);
+        let usdc_fa = test_fas::mint_fa(&fa_admin, b"USDC", 100000000);
+        let usdt_fa = test_fas::mint_fa(&fa_admin, b"USDT", 10000000000);
 
         test_pool::mint_liquidity<Stable>(&lp_owner, usdc_fa, usdt_fa);
 
-        let usdc_fa_to_exchange = test_coins::mint_fa(&fa_admin, b"USDC", 100000);
+        let usdc_fa_to_exchange = test_fas::mint_fa(&fa_admin, b"USDC", 100000);
         let (zero, usdt_fa) =
             liquidity_pool::swap<Stable>(
                 usdc_fa_to_exchange, 0,
@@ -3431,20 +3513,20 @@ module liquidswap_v05::liquidity_pool_tests {
         assert!(y_res == 9990035001, 2);
 
         fungible_asset::destroy_zero(zero);
-        test_coins::burn_fa(&fa_admin, b"USDT", usdt_fa);
+        test_fas::burn_fa(&fa_admin, b"USDT", usdt_fa);
     }
 
     #[test]
     fun test_reserved_liquidity() {
         let (fa_admin, lp_owner) = setup_btc_usdt_pool();
 
-        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"BTC");
-        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"BTC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
 
         let btc_liq_val = 100000000;
         let usdt_liq_val = 28000000000;
-        let btc_liq = test_coins::mint_fa(&fa_admin, b"BTC", btc_liq_val);
-        let usdt_liq = test_coins::mint_fa(&fa_admin, b"USDT", usdt_liq_val);
+        let btc_liq = test_fas::mint_fa(&fa_admin, b"BTC", btc_liq_val);
+        let usdt_liq = test_fas::mint_fa(&fa_admin, b"USDT", usdt_liq_val);
 
         timestamp::fast_forward_seconds(1660338836);
 
@@ -3459,8 +3541,8 @@ module liquidswap_v05::liquidity_pool_tests {
         let lp_metadata = get_lp_fa_metadata_from_x_y_metadatas<Uncorrelated>(fa_x_metadata, fa_y_metadata);
         let lp_fa = primary_fungible_store::withdraw(&lp_owner, lp_metadata, lp_fa_val);
 
-        let fa_x_metadata = test_coins::get_fa_metadata_from_symbol(b"BTC");
-        let fa_y_metadata = test_coins::get_fa_metadata_from_symbol(b"USDT");
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"BTC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
 
         let (x_fa, y_fa) =
             liquidity_pool::burn<Uncorrelated>(lp_fa, fa_x_metadata, fa_y_metadata);
@@ -3477,8 +3559,8 @@ module liquidswap_v05::liquidity_pool_tests {
 
         let btc_liq_val = 100000000;
         let usdt_liq_val = 28000000000;
-        let btc_liq = test_coins::mint_fa(&fa_admin, b"BTC", btc_liq_val);
-        let usdt_liq = test_coins::mint_fa(&fa_admin, b"USDT", usdt_liq_val);
+        let btc_liq = test_fas::mint_fa(&fa_admin, b"BTC", btc_liq_val);
+        let usdt_liq = test_fas::mint_fa(&fa_admin, b"USDT", usdt_liq_val);
 
         test_pool::mint_liquidity<Uncorrelated>(&lp_owner, btc_liq, usdt_liq);
         assert!(liquidity_pool::get_reserved_value<Uncorrelated>(fa_x_metadata, fa_y_metadata) ==

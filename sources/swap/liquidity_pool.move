@@ -86,6 +86,7 @@ module liquidswap_v05::liquidity_pool {
 
     // todo: recheck do we need #[resource_group_member(group = aptos_framework::object::ObjectGroup)]?
     // todo: is it possible to replenish pool balance directly and ruine some calculations?
+    // todo: same for lp store?
 
     /// Liquidity pool with reserve metadatas.
     struct LiquidityPool<phantom Curve> has key {
@@ -262,7 +263,6 @@ module liquidswap_v05::liquidity_pool {
 
         assert_pool_unlocked<Curve>(pool);
 
-        // todo: replace cap with @liquidswap_pool_account? try it later
         let fa_res_acc_addr =
             account::get_signer_capability_address(&pool.fa_signer_cap);
 
@@ -1120,7 +1120,7 @@ module liquidswap_v05::liquidity_pool {
     }
 
     #[test_only]
-    public fun update_cumulative_price_for_test<X, Y>(
+    public fun update_cumulative_price_for_test(
         test_account: &signer,
         prev_last_block_timestamp: u64,
         prev_last_price_x_cumulative: u128,

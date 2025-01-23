@@ -8,7 +8,7 @@ module liquidswap_v05::emergency_tests {
     use liquidswap_v05::global_config;
     use test_helpers::test_pool::{Self, create_liquidswap_admin};
 
-    #[test(emergency_acc = @emergency_admin, coin_admin = @test_coin_admin)]
+    #[test(emergency_acc = @emergency_admin, coin_admin = @test_fa_admin)]
     public fun test_end_to_end(emergency_acc: signer, coin_admin: signer) {
         test_pool::initialize_liquidity_pool();
 
@@ -24,7 +24,7 @@ module liquidswap_v05::emergency_tests {
 
         emergency::pause(&emergency_acc);
 
-        global_config::set_emergency_admin(&emergency_acc, @test_coin_admin);
+        global_config::set_emergency_admin(&emergency_acc, @test_fa_admin);
 
         assert!(emergency::is_disabled() == false, 3);
         emergency::disable_forever(&coin_admin);
