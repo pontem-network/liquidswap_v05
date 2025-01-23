@@ -20,7 +20,6 @@ module liquidswap_v05::liquidity_pool {
     use liquidswap_v05::dao_storage;
     use liquidswap_v05::emergency::{Self, assert_no_emergency};
     use liquidswap_v05::global_config;
-    use liquidswap_v05::lp_account;
     use liquidswap_v05::math;
     use liquidswap_v05::stable_curve;
 
@@ -127,7 +126,8 @@ module liquidswap_v05::liquidity_pool {
     public entry fun initialize(liquidswap_admin: &signer) {
         assert!(signer::address_of(liquidswap_admin) == @liquidswap_v05, ERR_NOT_ENOUGH_PERMISSIONS_TO_INITIALIZE);
 
-        let signer_cap = lp_account::retrieve_signer_cap(liquidswap_admin);
+        let (_, signer_cap) =
+            account::create_resource_account(liquidswap_admin, b"liquidswap_account_seed");
         move_to(liquidswap_admin, PoolAccountCapability { signer_cap });
 
         global_config::initialize(liquidswap_admin);

@@ -92,11 +92,6 @@ module liquidswap_v05::liquidity_pool_tests {
     }
 
     #[test]
-    fun test_liquidswap_lp_and_liquidswap_pool_account_are_the_same() {
-        assert!(@liquidswap_lp == @liquidswap_pool_account, 1);
-    }
-
-    #[test]
     fun test_create_empty_pool_uncorrelated() {
         let (_, lp_owner) = test_pool::setup_fa_and_lp_owner();
 
