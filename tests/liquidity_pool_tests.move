@@ -6,6 +6,7 @@ module liquidswap_v05::liquidity_pool_tests {
     use std::string::utf8;
 
     use aptos_framework::account;
+    use aptos_framework::aptos_coin::{Self, AptosCoin};
     use aptos_framework::coin;
     use aptos_framework::fungible_asset;
     use aptos_framework::fungible_asset::Metadata;
@@ -13,20 +14,17 @@ module liquidswap_v05::liquidity_pool_tests {
     use aptos_framework::object::Object;
     use aptos_framework::primary_fungible_store;
     use aptos_framework::timestamp;
-    use liquidswap_v05::liquidity_pool::LiquidityPool;
-    use liquidswap_v05::fa_helper;
-    use liquidswap_v05::dao_storage;
 
-    use liquidswap_v05::curves::{Uncorrelated, Stable};
+    use liquidswap_v05::curves;
+    use liquidswap_v05::curves::{Stable, Uncorrelated};
+    use liquidswap_v05::dao_storage;
     use liquidswap_v05::emergency;
+    use liquidswap_v05::fa_helper;
     use liquidswap_v05::global_config;
     use liquidswap_v05::liquidity_pool;
-    use liquidswap_v05::curves;
+    use liquidswap_v05::liquidity_pool::LiquidityPool;
     use test_fa_admin::test_fas;
     use test_helpers::test_pool::{Self, create_liquidswap_admin};
-    use aptos_framework::aptos_coin::{Self, AptosCoin};
-
-    // todo: optimize imports
 
     const MINIMAL_LIQUIDITY: u64 = 1000;
 

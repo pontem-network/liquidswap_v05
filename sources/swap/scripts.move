@@ -6,8 +6,8 @@ module liquidswap_v05::scripts {
     use aptos_framework::object::Object;
     use aptos_framework::primary_fungible_store;
 
-    use liquidswap_v05::router;
     use liquidswap_v05::liquidity_pool;
+    use liquidswap_v05::router;
 
     /// Register a new liquidity pool for `X`/`Y` pair.
     /// * `account` - pool creator signer.

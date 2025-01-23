@@ -6,7 +6,7 @@ module liquidswap_v05::router_tests {
     use aptos_framework::primary_fungible_store;
     use aptos_framework::timestamp;
 
-    use liquidswap_v05::curves::{Uncorrelated, Stable};
+    use liquidswap_v05::curves::{Stable, Uncorrelated};
     use liquidswap_v05::liquidity_pool;
     use liquidswap_v05::router;
     use test_fa_admin::test_fas;

@@ -6,12 +6,12 @@ module liquidswap_v05::dao_storage {
     use aptos_framework::account::SignerCapability;
     use aptos_framework::event;
     use aptos_framework::fungible_asset;
-    use aptos_framework::fungible_asset::{Metadata, FungibleAsset};
+    use aptos_framework::fungible_asset::{FungibleAsset, Metadata};
     use aptos_framework::object;
     use aptos_framework::object::Object;
     use aptos_framework::primary_fungible_store;
-    use liquidswap_v05::fa_helper;
 
+    use liquidswap_v05::fa_helper;
     use liquidswap_v05::global_config;
 
     friend liquidswap_v05::liquidity_pool;

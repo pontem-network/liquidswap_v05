@@ -7,7 +7,7 @@ module test_fa_admin::test_fas {
 
     use aptos_framework::account;
     use aptos_framework::fungible_asset;
-    use aptos_framework::fungible_asset::{MintRef, BurnRef, Metadata, FungibleAsset};
+    use aptos_framework::fungible_asset::{BurnRef, FungibleAsset, Metadata, MintRef};
     use aptos_framework::object::{Self, Object};
     use aptos_framework::primary_fungible_store;
 

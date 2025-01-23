@@ -2,20 +2,20 @@
 module liquidswap_v05::dao_storage_tests {
     use std::signer;
     use std::string;
-    use aptos_framework::account;
 
+    use aptos_framework::account;
     use aptos_framework::fungible_asset;
     use aptos_framework::object;
     use aptos_framework::primary_fungible_store;
 
     use liquidswap_v05::curves::Uncorrelated;
     use liquidswap_v05::dao_storage::{Self, FungibleStoreSigner};
+    use liquidswap_v05::global_config;
     use liquidswap_v05::liquidity_pool;
     use liquidswap_v05::router;
     use test_fa_admin::test_fas;
     use test_helpers::test_account::create_account;
     use test_helpers::test_pool;
-    use liquidswap_v05::global_config;
 
     #[test]
     fun test_register() {

@@ -1,17 +1,18 @@
 #[test_only]
 module liquidswap_v05::compare_tests {
     use std::option;
-    use aptos_framework::aptos_coin::AptosCoin;
+
     use aptos_std::comparator;
     use aptos_framework::account::create_signer_for_test;
-    use aptos_framework::coin;
-    use test_fa_admin::test_fas;
     use aptos_framework::aptos_coin;
+    use aptos_framework::aptos_coin::AptosCoin;
+    use aptos_framework::coin;
     use aptos_framework::fungible_asset;
     use aptos_framework::fungible_asset::Metadata;
     use aptos_framework::object::Object;
 
     use liquidswap_v05::fa_helper;
+    use test_fa_admin::test_fas;
 
     fun create_fake_apt(fa_admin: &signer): Object<Metadata> {
         // Create fake APT FA.

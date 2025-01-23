@@ -6,8 +6,8 @@ module liquidswap_v05::liquidity_pool {
     use std::string;
 
     use aptos_std::event;
-    use aptos_framework::fungible_asset::{Self, FungibleAsset, Metadata, MintRef, BurnRef};
     use aptos_framework::account::{Self, SignerCapability};
+    use aptos_framework::fungible_asset::{Self, BurnRef, FungibleAsset, Metadata, MintRef};
     use aptos_framework::object;
     use aptos_framework::object::Object;
     use aptos_framework::primary_fungible_store;
@@ -15,10 +15,10 @@ module liquidswap_v05::liquidity_pool {
 
     use uq64x64::uq64x64;
 
-    use liquidswap_v05::fa_helper;
     use liquidswap_v05::curves;
     use liquidswap_v05::dao_storage;
     use liquidswap_v05::emergency::{Self, assert_no_emergency};
+    use liquidswap_v05::fa_helper;
     use liquidswap_v05::global_config;
     use liquidswap_v05::math;
     use liquidswap_v05::stable_curve;

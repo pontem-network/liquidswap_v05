@@ -1,14 +1,14 @@
 /// Router v2 for Liquidity Pool, similar to Uniswap router.
 module liquidswap_v05::router {
     use aptos_framework::fungible_asset;
-    use aptos_framework::fungible_asset::{Metadata, FungibleAsset};
+    use aptos_framework::fungible_asset::{FungibleAsset, Metadata};
     use aptos_framework::object::Object;
 
-    use liquidswap_v05::fa_helper;
     use liquidswap_v05::curves;
+    use liquidswap_v05::fa_helper;
+    use liquidswap_v05::liquidity_pool;
     use liquidswap_v05::math;
     use liquidswap_v05::stable_curve;
-    use liquidswap_v05::liquidity_pool;
 
     // Errors codes.
 

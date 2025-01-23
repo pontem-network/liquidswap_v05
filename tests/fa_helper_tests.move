@@ -10,8 +10,8 @@ module liquidswap_v05::fa_helper_tests {
     use aptos_framework::fungible_asset::Metadata;
     use aptos_framework::object;
 
+    use liquidswap_v05::curves::{Stable, Uncorrelated};
     use liquidswap_v05::fa_helper;
-    use liquidswap_v05::curves::{Uncorrelated, Stable};
     use test_fa_admin::test_fas;
 
     #[test]

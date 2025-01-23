@@ -2,12 +2,12 @@
 module liquidswap_v05::curves_tests {
     use liquidswap_v05::curves::{
         Self,
+        assert_valid_curve,
         is_stable,
-        Uncorrelated,
-        Stable,
         is_uncorrelated,
         is_valid_curve,
-        assert_valid_curve
+        Stable,
+        Uncorrelated
     };
 
     struct UnknownCurve {}
