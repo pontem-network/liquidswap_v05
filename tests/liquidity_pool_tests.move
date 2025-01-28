@@ -14,6 +14,7 @@ module liquidswap_v05::liquidity_pool_tests {
     use aptos_framework::object::Object;
     use aptos_framework::primary_fungible_store;
     use aptos_framework::timestamp;
+    use liquidswap_v05::router;
 
     use liquidswap_v05::curves;
     use liquidswap_v05::curves::{Stable, Uncorrelated};
@@ -135,7 +136,6 @@ module liquidswap_v05::liquidity_pool_tests {
         assert!(x_price == 0, 9);
         assert!(y_price == 0, 10);
 
-        // todo: recheck LP
         // Check created LP.
         let lp_name = fungible_asset::name(lp_metadata);
         assert!(lp_name == utf8(b"LS05 LP-BTC-USDT-U"), 11);
@@ -233,7 +233,6 @@ module liquidswap_v05::liquidity_pool_tests {
         assert!(primary_fungible_store::primary_store_exists(fa_res_acc_addr, lp_metadata), 4);
 
         let lp_name = fungible_asset::name(lp_metadata);
-        // todo: recheck LP
         assert!(lp_name == utf8(b"LS05 LP-USDC-USDT-S"), 6);
         let lp_symbol = fungible_asset::symbol(lp_metadata);
         assert!(lp_symbol == utf8(b"USDC-USDTS"), 7);
@@ -335,7 +334,6 @@ module liquidswap_v05::liquidity_pool_tests {
             account::create_resource_address(&@liquidswap_pool_account,*pool_obj_name);
         assert!(primary_fungible_store::primary_store_exists(fa_res_acc_addr, lp_metadata), 1);
 
-        // todo: check LP
         let lp_name = fungible_asset::name(lp_metadata);
         assert!(lp_name == utf8(b"LS05 LP-BTC-BTC-U"), 2);
         let lp_symbol = fungible_asset::symbol(lp_metadata);
@@ -440,7 +438,6 @@ module liquidswap_v05::liquidity_pool_tests {
 
         // Check Uncorrelated LP created.
         assert!(primary_fungible_store::primary_store_exists(fa_res_acc_addr_u, lp_metadata_u), 17);
-        // todo: recheck LP
         let lp_name = fungible_asset::name(lp_metadata_u);
         assert!(lp_name == utf8(b"LS05 LP-BTC-USDT-U"), 18);
         let lp_symbol = fungible_asset::symbol(lp_metadata_u);
@@ -451,7 +448,6 @@ module liquidswap_v05::liquidity_pool_tests {
 
         // Check Stable LP created.
         assert!(primary_fungible_store::primary_store_exists(fa_res_acc_addr_s, lp_metadata_s), 22);
-        // todo: recheck LP
         let lp_name = fungible_asset::name(lp_metadata_s);
         assert!(lp_name == utf8(b"LS05 LP-BTC-USDT-S"), 23);
         let lp_symbol = fungible_asset::symbol(lp_metadata_s);
@@ -663,7 +659,6 @@ module liquidswap_v05::liquidity_pool_tests {
 
         // Check fake btc pool LP created.
         assert!(primary_fungible_store::primary_store_exists(fa_res_acc_addr_f, lp_metadata_f), 17);
-        // todo: recheck LP
         let lp_name = fungible_asset::name(lp_metadata_f);
         assert!(lp_name == utf8(b"LS05 LP-BTC-USDT-U"), 18);
         let lp_symbol = fungible_asset::symbol(lp_metadata_f);
@@ -674,7 +669,6 @@ module liquidswap_v05::liquidity_pool_tests {
 
         // Check real btc pool LP created.
         assert!(primary_fungible_store::primary_store_exists(fa_res_acc_addr_r, lp_metadata_r), 22);
-        // todo: recheck LP
         let lp_name = fungible_asset::name(lp_metadata_r);
         assert!(lp_name == utf8(b"LS05 LP-BTC-USDT-U"), 23);
         let lp_symbol = fungible_asset::symbol(lp_metadata_r);
@@ -820,6 +814,7 @@ module liquidswap_v05::liquidity_pool_tests {
     }
 
     // Add liquidity tests.
+
     #[test]
     #[expected_failure(abort_code = liquidity_pool::ERR_POOL_DOES_NOT_EXIST)]
     fun test_fail_if_pool_for_this_pair_does_not_exist() {
@@ -1057,7 +1052,6 @@ module liquidswap_v05::liquidity_pool_tests {
         assert!(!object::object_exists<Metadata>(
             get_lp_fa_metadata_obj_addr_from_x_y_metadatas<Uncorrelated>(fa_y_metadata, fa_x_metadata)), 2);
 
-        // todo: recheck LP
         let lp_name = fungible_asset::name(lp_metadata);
         assert!(lp_name == utf8(b"LS05 LP-APT-BTC-U"), 3);
         let lp_symbol = fungible_asset::symbol(lp_metadata);
@@ -1161,7 +1155,8 @@ module liquidswap_v05::liquidity_pool_tests {
         test_pool::mint_liquidity<Uncorrelated>(&lp_owner, usdt_liq, btc_liq);
     }
 
-    // Test burn liquidity.
+    // Remove liquidity tests.
+
     #[test]
     #[expected_failure(abort_code = liquidity_pool::ERR_INCORRECT_BURN_VALUES)]
     fun test_fail_if_trying_to_burn_zero_values() {
@@ -1187,7 +1182,6 @@ module liquidswap_v05::liquidity_pool_tests {
         test_fas::burn_fa(&fa_admin, b"USDT", usdt_return);
     }
 
-    // Test burn liquidity.
     #[test]
     fun test_burn_liquidity_at_pool_registration() {
         let (fa_admin, _) = setup_btc_usdt_pool();
@@ -2160,6 +2154,464 @@ module liquidswap_v05::liquidity_pool_tests {
                 fungible_asset::zero(fa_y_metadata), 0,
                 btc_fa_to_exchange, 1
             );
+
+        fungible_asset::destroy_zero(zero);
+        test_fas::burn_fa(&fa_admin, b"USDT", usdt_fa);
+    }
+
+    // Reserves directly replenishment tests. Should not affect mint\burn\swap work.
+
+    // Violate get_reserves tests.
+
+    #[test]
+    fun test_violate_get_reserves_by_pool_reserves_direct_replenishment() {
+        // Virtual (legal) reserves should not take in count direct deposits.
+        let (fa_admin, lp_owner) = setup_btc_usdt_pool();
+
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"BTC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
+
+        let pool_obj_name =
+            string::bytes(&fa_helper::create_pool_obj_name<Uncorrelated>(fa_x_metadata, fa_y_metadata));
+        let pool_fa_store_res_acc_addr =
+            account::create_resource_address(&@liquidswap_pool_account, *pool_obj_name);
+
+        // Check directly X and Y FA's stores are empty at start.
+        assert!(primary_fungible_store::balance(pool_fa_store_res_acc_addr, fa_x_metadata) == 0, 1);
+        assert!(primary_fungible_store::balance(pool_fa_store_res_acc_addr, fa_y_metadata) == 0, 2);
+        // Check X and Y reserves with getter.
+        let (x_res, y_res) =
+            liquidity_pool::get_reserves_size<Uncorrelated>(fa_x_metadata, fa_y_metadata);
+        assert!(x_res == 0, 3);
+        assert!(y_res == 0, 4);
+
+        // Violate reserves to get_reserves.
+        let pool_obj_name =
+            string::bytes(&fa_helper::create_pool_obj_name<Uncorrelated>(fa_x_metadata, fa_y_metadata));
+        let fa_res_acc_addr =
+            account::create_resource_address(&@liquidswap_pool_account,*pool_obj_name);
+        let btc_fa_to_violate_reserves = test_fas::mint_fa(&fa_admin, b"BTC", 100000000);
+        let usdt_fa_to_violate_reserves = test_fas::mint_fa(&fa_admin, b"USDT", 100000000);
+        primary_fungible_store::deposit(fa_res_acc_addr, btc_fa_to_violate_reserves);
+        primary_fungible_store::deposit(fa_res_acc_addr, usdt_fa_to_violate_reserves);
+
+        // Check directly X and Y FA's stores after direct deposit.
+        assert!(primary_fungible_store::balance(pool_fa_store_res_acc_addr, fa_x_metadata) == 100000000, 5);
+        assert!(primary_fungible_store::balance(pool_fa_store_res_acc_addr, fa_y_metadata) == 100000000, 6);
+        // Check X and Y reserves with getter.
+        let (x_res, y_res) =
+            liquidity_pool::get_reserves_size<Uncorrelated>(fa_x_metadata, fa_y_metadata);
+        assert!(x_res == 0, 7);
+        assert!(y_res == 0, 8);
+
+        // Valid mint.
+        let btc_liq_val = 123456;
+        let usdt_liq_val = 123456;
+        let btc_liq = test_fas::mint_fa(&fa_admin, b"BTC", btc_liq_val);
+        let usdt_liq = test_fas::mint_fa(&fa_admin, b"USDT", usdt_liq_val);
+
+        let _ =
+            test_pool::mint_liquidity<Uncorrelated>(&lp_owner, btc_liq, usdt_liq);
+
+        // Check directly X and Y FA's stores after direct deposit and valid mint.
+        assert!(primary_fungible_store::balance(pool_fa_store_res_acc_addr, fa_x_metadata) == 100123456, 9);
+        assert!(primary_fungible_store::balance(pool_fa_store_res_acc_addr, fa_y_metadata) == 100123456, 10);
+        // Check X and Y reserves with getter.
+        let (x_res, y_res) =
+            liquidity_pool::get_reserves_size<Uncorrelated>(fa_x_metadata, fa_y_metadata);
+        assert!(x_res == 123456, 11);
+        assert!(y_res == 123456, 12);
+    }
+
+    // Violate mint tests.
+
+    #[test]
+    fun test_violate_mint_result_by_pool_reserves_direct_replenishment_before_valid_mint() {
+        // Actually on first mint LP supply is zero, so we doesn't even check previous reserves.
+        // Direct depoist into reserves, in this case, will only change actual FungibleStore,
+        // expected_liquidity will match minted liquidity.
+        // So violated mint will succeed anyway. But let's keep this test.
+        let (fa_admin, lp_owner) = setup_btc_usdt_pool();
+
+        timestamp::fast_forward_seconds(1660338836);
+
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"BTC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
+
+        // Get LP metadata.
+        let pool_obj_name =
+            string::bytes(&fa_helper::create_pool_obj_name<Uncorrelated>(fa_x_metadata, fa_y_metadata));
+        let pool_fa_store_res_acc_addr =
+            account::create_resource_address(&@liquidswap_pool_account, *pool_obj_name);
+        let lp_metadata =
+            get_lp_fa_metadata_from_x_y_metadatas<Uncorrelated>(fa_x_metadata, fa_y_metadata);
+
+        // Check directly X and Y FA's stores are empty before first mint.
+        assert!(primary_fungible_store::balance(pool_fa_store_res_acc_addr, fa_x_metadata) == 0, 1);
+        assert!(primary_fungible_store::balance(pool_fa_store_res_acc_addr, fa_y_metadata) == 0, 2);
+        // Check X and Y reserves with getter.
+        let (x_res, y_res) =
+            liquidity_pool::get_reserves_size<Uncorrelated>(fa_x_metadata, fa_y_metadata);
+        assert!(x_res == 0, 3);
+        assert!(y_res == 0, 4);
+
+        // Check LP supply getter before first mint.
+        assert!(liquidity_pool::get_pool_lp_supply<Uncorrelated>(fa_x_metadata, fa_y_metadata) == 0, 5);
+        // Check LP supply bypass getter before first mint.
+        assert!(option::extract(&mut fungible_asset::supply(lp_metadata)) == 0, 6);
+
+        // Check directly that pool LP FA store contains nothing at start.
+        assert!(primary_fungible_store::balance(pool_fa_store_res_acc_addr, lp_metadata) == 0, 7);
+
+        // Violate reserves to impact mint result.
+        let pool_obj_name =
+            string::bytes(&fa_helper::create_pool_obj_name<Uncorrelated>(fa_x_metadata, fa_y_metadata));
+        let fa_res_acc_addr =
+            account::create_resource_address(&@liquidswap_pool_account,*pool_obj_name);
+        let usdt_fa_to_violate_reserves = test_fas::mint_fa(&fa_admin, b"USDT", 100000000);
+        primary_fungible_store::deposit(fa_res_acc_addr, usdt_fa_to_violate_reserves);
+
+        // Check directly X and Y FA's stores are empty after direct deposit.
+        assert!(primary_fungible_store::balance(pool_fa_store_res_acc_addr, fa_x_metadata) == 0, 8);
+        assert!(primary_fungible_store::balance(pool_fa_store_res_acc_addr, fa_y_metadata) == 100000000, 9);
+        // Check X and Y reserves with getter.
+        let (x_res, y_res) =
+            liquidity_pool::get_reserves_size<Uncorrelated>(fa_x_metadata, fa_y_metadata);
+        assert!(x_res == 0, 10);
+        assert!(y_res == 0, 11);
+
+        // Check LP supply getter after direct deposit.
+        assert!(liquidity_pool::get_pool_lp_supply<Uncorrelated>(fa_x_metadata, fa_y_metadata) == 0, 12);
+        // Check LP supply bypass getter after direct deposit.
+        assert!(option::extract(&mut fungible_asset::supply(lp_metadata)) == 0, 13);
+
+        // Check directly that pool LP FA store contains nothing after direct reserves deposit.
+        assert!(primary_fungible_store::balance(pool_fa_store_res_acc_addr, lp_metadata) == 0, 14);
+
+        // Valid mint.
+        let btc_liq_val = 100000000;
+        let usdt_liq_val = 28000000000;
+        let btc_liq = test_fas::mint_fa(&fa_admin, b"BTC", btc_liq_val);
+        let usdt_liq = test_fas::mint_fa(&fa_admin, b"USDT", usdt_liq_val);
+
+        let lp_fa_val =
+            test_pool::mint_liquidity<Uncorrelated>(&lp_owner, btc_liq, usdt_liq);
+
+        let expected_liquidity = 1673320053;
+        assert!(lp_fa_val == expected_liquidity - MINIMAL_LIQUIDITY, 15);
+
+        // Check directly X and Y FA's stores are contain only value passed into valid mint.
+        assert!(primary_fungible_store::balance(pool_fa_store_res_acc_addr, fa_x_metadata) == btc_liq_val, 16);
+        assert!(primary_fungible_store::balance(pool_fa_store_res_acc_addr, fa_y_metadata) ==
+            usdt_liq_val + 100000000, 17);
+        // Check X and Y reserves with getter.
+        let (x_res, y_res) =
+            liquidity_pool::get_reserves_size<Uncorrelated>(fa_x_metadata, fa_y_metadata);
+        assert!(x_res == btc_liq_val, 18);
+        assert!(y_res == usdt_liq_val, 19);
+
+        // Check LP supply getter after valid mint. Should contain only valid mint liq.
+        assert!(liquidity_pool::get_pool_lp_supply<Uncorrelated>(fa_x_metadata, fa_y_metadata) ==
+            (expected_liquidity as u128), 20);
+        // Check LP supply bypass getter after valid mint. Should contain only valid mint liq.
+        assert!(option::extract(&mut fungible_asset::supply(lp_metadata)) ==
+            (expected_liquidity as u128), 21);
+
+        // Check directly that pool LP FA store contains MINIMAL_LIQUIDITY amount.
+        assert!(primary_fungible_store::balance(pool_fa_store_res_acc_addr, lp_metadata) == MINIMAL_LIQUIDITY, 22);
+
+        let (x_price, y_price, ts) =
+            liquidity_pool::get_cumulative_prices<Uncorrelated>(fa_x_metadata, fa_y_metadata);
+        assert!(x_price == 0, 23);
+        assert!(y_price == 0, 24);
+        assert!(ts == 1660338836, 25);
+    }
+
+    #[test]
+    fun test_violate_mint_result_by_pool_reserves_direct_replenishment_between_two_mints() {
+        // If someone deposits directly into pool reserves after first mint it will actually corrupt
+        // liquidity calculations for next mints. If we fetch reserves directly in mint func, expected_liquidity of
+        // second mint will be different. Purpose of this test is to check that such activity
+        // won't affect upcoming mints.
+        let (fa_admin, lp_owner) = setup_btc_usdt_pool();
+
+        let initial_ts = 1660338836;
+        timestamp::fast_forward_seconds(initial_ts);
+
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"BTC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
+
+        // Get LP metadata.
+        let pool_obj_name =
+            string::bytes(&fa_helper::create_pool_obj_name<Uncorrelated>(fa_x_metadata, fa_y_metadata));
+        let pool_fa_store_res_acc_addr =
+            account::create_resource_address(&@liquidswap_pool_account, *pool_obj_name);
+        let lp_metadata =
+            get_lp_fa_metadata_from_x_y_metadatas<Uncorrelated>(fa_x_metadata, fa_y_metadata);
+
+        // Check directly X and Y FA's stores are empty before first mint.
+        assert!(primary_fungible_store::balance(pool_fa_store_res_acc_addr, fa_x_metadata) == 0, 1);
+        assert!(primary_fungible_store::balance(pool_fa_store_res_acc_addr, fa_y_metadata) == 0, 2);
+        // Check X and Y reserves with getter.
+        let (x_res, y_res) =
+            liquidity_pool::get_reserves_size<Uncorrelated>(fa_x_metadata, fa_y_metadata);
+        assert!(x_res == 0, 3);
+        assert!(y_res == 0, 4);
+
+        // Check LP supply getter before first mint.
+        assert!(liquidity_pool::get_pool_lp_supply<Uncorrelated>(fa_x_metadata, fa_y_metadata) == 0, 5);
+        // Check LP supply bypass getter before first mint.
+        assert!(option::extract(&mut fungible_asset::supply(lp_metadata)) == 0, 6);
+
+        // Check directly that pool LP FA store contains nothing at start.
+        assert!(primary_fungible_store::balance(pool_fa_store_res_acc_addr, lp_metadata) == 0, 7);
+
+        // First valid mint.
+        let btc_liq_val = 100000000;
+        let usdt_liq_val = 28000000000;
+        let btc_liq = test_fas::mint_fa(&fa_admin, b"BTC", btc_liq_val);
+        let usdt_liq = test_fas::mint_fa(&fa_admin, b"USDT", usdt_liq_val);
+
+        let lp_fa_val =
+            test_pool::mint_liquidity<Uncorrelated>(&lp_owner, btc_liq, usdt_liq);
+
+        let expected_liquidity = 1673320053;
+        assert!(lp_fa_val == expected_liquidity - MINIMAL_LIQUIDITY, 8);
+
+        // Check directly X and Y FA's stores are contain only value passed into valid mint.
+        assert!(primary_fungible_store::balance(pool_fa_store_res_acc_addr, fa_x_metadata) == btc_liq_val, 9);
+        assert!(primary_fungible_store::balance(pool_fa_store_res_acc_addr, fa_y_metadata) == usdt_liq_val, 10);
+        // Check X and Y reserves with getter.
+        let (x_res, y_res) =
+            liquidity_pool::get_reserves_size<Uncorrelated>(fa_x_metadata, fa_y_metadata);
+        assert!(x_res == btc_liq_val, 11);
+        assert!(y_res == usdt_liq_val, 12);
+
+        // Check LP supply getter after valid mint. Should contain only valid mint liq.
+        assert!(liquidity_pool::get_pool_lp_supply<Uncorrelated>(fa_x_metadata, fa_y_metadata) ==
+            (expected_liquidity as u128), 13);
+        // Check LP supply bypass getter after valid mint. Should contain only valid mint liq.
+        assert!(option::extract(&mut fungible_asset::supply(lp_metadata)) ==
+            (expected_liquidity as u128), 14);
+
+        // Check directly that pool LP FA store contains MINIMAL_LIQUIDITY amount.
+        assert!(primary_fungible_store::balance(pool_fa_store_res_acc_addr, lp_metadata) == MINIMAL_LIQUIDITY, 15);
+
+        let (x_price, y_price, ts) =
+            liquidity_pool::get_cumulative_prices<Uncorrelated>(fa_x_metadata, fa_y_metadata);
+        assert!(x_price == 0, 16);
+        assert!(y_price == 0, 17);
+        assert!(ts == initial_ts, 18);
+
+        // Violate reserves to impact mint result.
+        let pool_obj_name =
+            string::bytes(&fa_helper::create_pool_obj_name<Uncorrelated>(fa_x_metadata, fa_y_metadata));
+        let fa_res_acc_addr =
+            account::create_resource_address(&@liquidswap_pool_account,*pool_obj_name);
+        let usdt_fa_to_violate_reserves = test_fas::mint_fa(&fa_admin, b"USDT", 100000000);
+        primary_fungible_store::deposit(fa_res_acc_addr, usdt_fa_to_violate_reserves);
+
+        // Check directly X and Y FA's stores are contain only value passed into first valid mint.
+        assert!(primary_fungible_store::balance(pool_fa_store_res_acc_addr, fa_x_metadata) == btc_liq_val, 19);
+        assert!(primary_fungible_store::balance(pool_fa_store_res_acc_addr, fa_y_metadata) ==
+            usdt_liq_val + 100000000, 20);
+        // Check X and Y reserves with getter.
+        let (x_res, y_res) =
+            liquidity_pool::get_reserves_size<Uncorrelated>(fa_x_metadata, fa_y_metadata);
+        assert!(x_res == btc_liq_val, 21);
+        assert!(y_res == usdt_liq_val, 22);
+
+        // Check LP supply getter after first valid mint. Should contain only first valid mint liq.
+        assert!(liquidity_pool::get_pool_lp_supply<Uncorrelated>(fa_x_metadata, fa_y_metadata) ==
+            (expected_liquidity as u128), 23);
+        // Check LP supply bypass getter after valid mint. Should contain only  firstvalid mint liq.
+        assert!(option::extract(&mut fungible_asset::supply(lp_metadata)) ==
+            (expected_liquidity as u128), 24);
+
+        // Check directly that pool LP FA store contains MINIMAL_LIQUIDITY amount.
+        assert!(primary_fungible_store::balance(pool_fa_store_res_acc_addr, lp_metadata) == MINIMAL_LIQUIDITY, 25);
+
+        timestamp::fast_forward_seconds(360);
+
+        // Second valid mint.
+        let btc_liq = test_fas::mint_fa(&fa_admin, b"BTC", btc_liq_val * 2);
+        let usdt_liq = test_fas::mint_fa(&fa_admin, b"USDT", usdt_liq_val * 2);
+
+        let lp_fa_val =
+            test_pool::mint_liquidity<Uncorrelated>(&lp_owner, btc_liq, usdt_liq);
+
+        let expected_liquidity_2 = 3346640106;
+        assert!(lp_fa_val == expected_liquidity_2, 26);
+
+        // Check directly X and Y FA's stores are contain only value passed into valid mint.
+        assert!(primary_fungible_store::balance(pool_fa_store_res_acc_addr, fa_x_metadata) == btc_liq_val * 3, 27);
+        assert!(primary_fungible_store::balance(pool_fa_store_res_acc_addr, fa_y_metadata) ==
+            usdt_liq_val * 3 + 100000000, 28);
+        // Check X and Y reserves with getter.
+        let (x_res, y_res) =
+            liquidity_pool::get_reserves_size<Uncorrelated>(fa_x_metadata, fa_y_metadata);
+        assert!(x_res == btc_liq_val * 3, 29);
+        assert!(y_res == usdt_liq_val * 3, 30);
+
+        // Check LP supply getter after valid mint. Should contain only valid mint liq.
+        assert!(liquidity_pool::get_pool_lp_supply<Uncorrelated>(fa_x_metadata, fa_y_metadata) ==
+            ((expected_liquidity_2 + expected_liquidity) as u128), 31);
+        // Check LP supply bypass getter after valid mint. Should contain only valid mint liq.
+        assert!(option::extract(&mut fungible_asset::supply(lp_metadata)) ==
+            ((expected_liquidity_2 + expected_liquidity) as u128), 32);
+
+        // Check directly that pool LP FA store contains MINIMAL_LIQUIDITY amount.
+        assert!(primary_fungible_store::balance(pool_fa_store_res_acc_addr, lp_metadata) == MINIMAL_LIQUIDITY, 33);
+
+        let (x_price, y_price, ts) =
+            liquidity_pool::get_cumulative_prices<Uncorrelated>(fa_x_metadata, fa_y_metadata);
+        assert!(x_price == 1859431802629922802792000, 34);
+        assert!(y_price == 23717242380483709200, 35);
+        assert!(ts == initial_ts + 360, 36);
+    }
+
+    // Violate burn tests.
+
+    #[test]
+    fun test_violate_burn_result_by_pool_reserves_direct_replenishment_before_burn() {
+        let (fa_admin, _) = setup_btc_usdt_pool();
+
+        timestamp::fast_forward_seconds(1660517742);
+
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"BTC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
+
+        // Get LP metadata.
+        let pool_obj_name =
+            string::bytes(&fa_helper::create_pool_obj_name<Uncorrelated>(fa_x_metadata, fa_y_metadata));
+        let pool_fa_store_res_acc_addr =
+            account::create_resource_address(&@liquidswap_pool_account, *pool_obj_name);
+        let lp_metadata =
+            get_lp_fa_metadata_from_x_y_metadatas<Uncorrelated>(fa_x_metadata, fa_y_metadata);
+
+        // Check LP supply getter before first mint.
+        assert!(liquidity_pool::get_pool_lp_supply<Uncorrelated>(fa_x_metadata, fa_y_metadata) == 0, 1);
+        // Check LP supply bypass getter before first mint.
+        assert!(option::extract(&mut fungible_asset::supply(lp_metadata)) == 0, 2);
+
+        // Check directly that pool LP FA store contains nothing at start.
+        assert!(primary_fungible_store::balance(pool_fa_store_res_acc_addr, lp_metadata) == 0, 3);
+
+        // Add initial liquidity.
+        let btc_fa = test_fas::mint_fa(&fa_admin, b"BTC", 2000000000000);
+        let usdt_fa = test_fas::mint_fa(&fa_admin, b"USDT", 560000000000000);
+
+        let lp_fa_initial =
+            liquidity_pool::mint<Uncorrelated>(btc_fa, usdt_fa);
+
+        timestamp::fast_forward_seconds(7200);
+
+        // Add additional liquidity
+        let btc_fa = test_fas::mint_fa(&fa_admin, b"BTC", 50000000);
+        let usdt_fa = test_fas::mint_fa(&fa_admin, b"USDT", 14000000000);
+
+        let lp_fa_user =
+            liquidity_pool::mint<Uncorrelated>(btc_fa, usdt_fa);
+
+        // Violate reserves to impact burn result.
+        let pool_obj_name =
+            string::bytes(&fa_helper::create_pool_obj_name<Uncorrelated>(fa_x_metadata, fa_y_metadata));
+        let fa_res_acc_addr =
+            account::create_resource_address(&@liquidswap_pool_account,*pool_obj_name);
+        let usdt_fa_to_violate_reserves =
+            test_fas::mint_fa(&fa_admin, b"USDT", 100000000000000);
+        primary_fungible_store::deposit(fa_res_acc_addr, usdt_fa_to_violate_reserves);
+
+        // Burn after reserves manipulation.
+        let (btc_return, usdt_return) =
+            liquidity_pool::burn<Uncorrelated>(lp_fa_initial, fa_x_metadata, fa_y_metadata);
+
+        assert!(fungible_asset::amount(&btc_return) == 1999999999940, 4);
+        assert!(fungible_asset::amount(&usdt_return) == 559999999983275, 5);
+
+        test_fas::burn_fa(&fa_admin, b"BTC", btc_return);
+        test_fas::burn_fa(&fa_admin, b"USDT", usdt_return);
+
+        let (btc_return, usdt_return) =
+            liquidity_pool::burn<Uncorrelated>(lp_fa_user, fa_x_metadata, fa_y_metadata);
+
+        assert!(fungible_asset::amount(&btc_return) == 50000000, 6);
+        assert!(fungible_asset::amount(&usdt_return) == 13999999991, 7);
+
+        test_fas::burn_fa(&fa_admin, b"BTC", btc_return);
+        test_fas::burn_fa(&fa_admin, b"USDT", usdt_return);
+
+        let (x_res, y_res) =
+            liquidity_pool::get_reserves_size<Uncorrelated>(fa_x_metadata, fa_y_metadata);
+        assert!(x_res == 60, 8);
+        assert!(y_res == 16734, 9);
+
+        // Check LP supply getter after burn.
+        assert!(liquidity_pool::get_pool_lp_supply<Uncorrelated>(fa_x_metadata, fa_y_metadata) ==
+            (MINIMAL_LIQUIDITY as u128), 10);
+        // Check LP supply bypass getter after burn.
+        assert!(option::extract(&mut fungible_asset::supply(lp_metadata)) == (MINIMAL_LIQUIDITY as u128), 11);
+
+        // Check directly that pool LP FA store contains min liq after burn.
+        assert!(primary_fungible_store::balance(pool_fa_store_res_acc_addr, lp_metadata) == MINIMAL_LIQUIDITY, 12);
+
+        let (x_cum_price, y_cum_price, ts) =
+            liquidity_pool::get_cumulative_prices<Uncorrelated>(fa_x_metadata, fa_y_metadata);
+        assert!(x_cum_price == 37188636052598456055840000, 13);
+        assert!(y_cum_price == 474344847609674184000, 14);
+        assert!(ts == 1660517742 + 7200, 15);
+    }
+
+    // Violate swap tests.
+
+    #[test]
+    fun test_violate_swap_result_by_pool_reserves_direct_replenishment() {
+        // This test ensures that after direct reserves deposit swap uses only
+        // reserves that added through mint function, ignoring illegally added value.
+        let (fa_admin, lp_owner) = setup_btc_usdt_pool();
+
+        let btc_fa = test_fas::mint_fa(&fa_admin, b"BTC", 100100);
+        let usdt_fa = test_fas::mint_fa(&fa_admin, b"USDT", 100100);
+
+        test_pool::mint_liquidity<Uncorrelated>(&lp_owner, btc_fa, usdt_fa);
+
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"BTC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
+
+        // Calculate amount out before reserves violated.
+        let btc_val_to_exchange = 2;
+        let usdt_amount_out1 =
+            router::get_amount_out<Uncorrelated>(btc_val_to_exchange, fa_x_metadata, fa_y_metadata);
+
+        // Violate reserves to impact swap result.
+        let pool_obj_name =
+            string::bytes(&fa_helper::create_pool_obj_name<Uncorrelated>(fa_x_metadata, fa_y_metadata));
+        let fa_res_acc_addr =
+            account::create_resource_address(&@liquidswap_pool_account,*pool_obj_name);
+        let usdt_fa_to_violate_reserves =
+            test_fas::mint_fa(&fa_admin, b"USDT", 100000000000000000);
+        primary_fungible_store::deposit(fa_res_acc_addr, usdt_fa_to_violate_reserves);
+
+        // Calculate amount out after reserves violated.
+        let btc_val_to_exchange = 2;
+        let usdt_amount_out2 =
+            router::get_amount_out<Uncorrelated>(btc_val_to_exchange, fa_x_metadata, fa_y_metadata);
+
+        // Check that directly deposited reserves doesn't affect get_amount_out calculation.
+        assert!(usdt_amount_out1 == usdt_amount_out2, 1);
+
+        let btc_fa_to_exchange = test_fas::mint_fa(&fa_admin, b"BTC", btc_val_to_exchange);
+        let (zero, usdt_fa) =
+            liquidity_pool::swap<Uncorrelated>(
+                btc_fa_to_exchange, 0,
+                fungible_asset::zero(fa_y_metadata), usdt_amount_out1
+            );
+        assert!(fungible_asset::amount(&usdt_fa) == usdt_amount_out2, 2);
+
+        let (x_res, y_res) =
+            liquidity_pool::get_reserves_size<Uncorrelated>(fa_x_metadata, fa_y_metadata);
+        assert!(x_res == 100102, 3);
+        assert!(y_res == 100099, 4);
 
         fungible_asset::destroy_zero(zero);
         test_fas::burn_fa(&fa_admin, b"USDT", usdt_fa);

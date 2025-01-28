@@ -111,8 +111,6 @@ module liquidswap_v05::router {
         x_metadata: Object<Metadata>,
         y_metadata: Object<Metadata>,
     ): (FungibleAsset, FungibleAsset) {
-        // todo: fetch metadata from LP?
-
         assert!(fa_helper::is_fa_sorted(x_metadata, y_metadata), ERR_WRONG_FA_ORDER);
 
         let (x_out, y_out) =

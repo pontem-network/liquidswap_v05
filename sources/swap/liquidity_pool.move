@@ -27,65 +27,54 @@ module liquidswap_v05::liquidity_pool {
 
     /// When FA's used to create pair have wrong ordering.
     const ERR_WRONG_PAIR_ORDERING: u64 = 100;
-
     /// When pair already exists on account.
     const ERR_POOL_EXISTS_FOR_PAIR: u64 = 101;
-
     /// When not enough liquidity minted.
     const ERR_NOT_ENOUGH_INITIAL_LIQUIDITY: u64 = 102;
-
     /// When not enough liquidity minted.
     const ERR_NOT_ENOUGH_LIQUIDITY: u64 = 103;
-
     /// When both X and Y provided for swap are equal zero.
     const ERR_EMPTY_FA_IN: u64 = 104;
-
     /// When incorrect INs/OUTs arguments passed during swap and math doesn't work.
     const ERR_INCORRECT_SWAP: u64 = 105;
-
     /// Incorrect lp coin burn values.
     const ERR_INCORRECT_BURN_VALUES: u64 = 106;
-
     /// When pool doesn't exists for pair.
     const ERR_POOL_DOES_NOT_EXIST: u64 = 107;
-
     /// Should never occur.
     const ERR_UNREACHABLE: u64 = 108;
-
     /// When `initialize()` transaction is signed with any account other than @liquidswap.
     const ERR_NOT_ENOUGH_PERMISSIONS_TO_INITIALIZE: u64 = 109;
-
     /// When both X and Y provided for flashloan are equal zero.
     const ERR_EMPTY_FA_LOAN: u64 = 110;
-
     /// When pool is locked.
     const ERR_POOL_IS_LOCKED: u64 = 111;
-
     /// When user is not admin.
     const ERR_NOT_ADMIN: u64 = 112;
-
     /// When user returns flashloan to wrong pool.
     const ERR_WRONG_POOL: u64 = 113;
-
     /// When pool is unlocked, but should be locked.
     const ERR_POOL_IS_UNLOCKED: u64 = 114;
+    /// When not enough reserves for flashloan.
+    const ERR_NOT_ENOUGH_RESERVES: u64 = 115;
 
     // Constants.
 
     /// Minimal liquidity.
     const MINIMAL_LIQUIDITY: u64 = 1000;
-
     /// Denominator to handle decimal points for fees.
     const FEE_SCALE: u64 = 10000;
-
     /// Denominator to handle decimal points for dao fee.
     const DAO_FEE_SCALE: u64 = 100;
+    /// Liquidity fungible asset decimals.
+    const LP_FA_DECIMALS: u8 = 6;
 
     // Public functions.
 
     // todo: recheck do we need #[resource_group_member(group = aptos_framework::object::ObjectGroup)]?
-    // todo: is it possible to replenish pool balance directly and ruine some calculations?
-    // todo: same for lp store?
+    // todo: do we need to track LP balance as with resources?
+    // todo: we can create lp_metadata => pool_obj_address mapping to get rid of X & Y metadata passing on burn()
+    // todo: check user able to transfer LP FA.
 
     /// Liquidity pool with reserve metadatas.
     struct LiquidityPool<phantom Curve> has key {
@@ -93,6 +82,12 @@ module liquidswap_v05::liquidity_pool {
         fa_signer_cap: SignerCapability,
         // Metadata of LP FA's.
         lp_metadata: Object<Metadata>,
+
+        // todo: stop track reserves after AIP with FA adjustment.
+        // Pool reserves. Should track them here because there is
+        // an ability to replenish FungibleStore bypassing mint func.
+        x_reserves: u64,
+        y_reserves: u64,
 
         last_block_timestamp: u64,
         last_price_x_cumulative: u128,
@@ -158,25 +153,25 @@ module liquidswap_v05::liquidity_pool {
             string::bytes(&fa_helper::create_pool_obj_name<Curve>(x_metadata, y_metadata));
         let lp_fa_obj_seed = string::utf8(*pool_obj_name);
         string::append_utf8( &mut lp_fa_obj_seed, b"-LP");
-        let constructor_ref =
+        let lp_fa_construnctor_ref =
             &object::create_named_object(&pool_account, *string::bytes(&lp_fa_obj_seed));
-        object::set_untransferable(constructor_ref);
+        object::set_untransferable(lp_fa_construnctor_ref);
 
         // Create the FA's LP Metadata with name, symbol, icon, etc.
         let (lp_name, lp_symbol) =
              fa_helper::fa_generate_lp_name_and_symbol<Curve>(x_metadata, y_metadata);
         primary_fungible_store::create_primary_store_enabled_fungible_asset(
-            constructor_ref,
+            lp_fa_construnctor_ref,
             option::none(), // todo: is it good?
             lp_name,
             lp_symbol,
-            6, /* decimals */
+            LP_FA_DECIMALS,
             string::utf8(b""), /* icon uri */ // todo: is it good?
             string::utf8(b""), /* project uri */ // todo: is it good?
         );
 
-        let lp_mint_ref = fungible_asset::generate_mint_ref(constructor_ref);
-        let lp_burn_ref = fungible_asset::generate_burn_ref(constructor_ref);
+        let lp_mint_ref = fungible_asset::generate_mint_ref(lp_fa_construnctor_ref);
+        let lp_burn_ref = fungible_asset::generate_burn_ref(lp_fa_construnctor_ref);
         let lp_metadata = fungible_asset::mint_ref_metadata(&lp_mint_ref);
 
         // Create fungible stores for X, Y and LP FA's.
@@ -199,6 +194,8 @@ module liquidswap_v05::liquidity_pool {
         let pool = LiquidityPool<Curve> {
             fa_signer_cap: fa_sig_cap,
             lp_metadata,
+            x_reserves: 0,
+            y_reserves: 0,
             last_block_timestamp: 0,
             last_price_x_cumulative: 0,
             last_price_y_cumulative: 0,
@@ -266,8 +263,8 @@ module liquidswap_v05::liquidity_pool {
         let fa_res_acc_addr =
             account::get_signer_capability_address(&pool.fa_signer_cap);
 
-        let x_reserve_size = primary_fungible_store::balance(fa_res_acc_addr, x_metadata);
-        let y_reserve_size = primary_fungible_store::balance(fa_res_acc_addr, y_metadata);
+        let x_reserve_size = pool.x_reserves;
+        let y_reserve_size = pool.y_reserves;
 
         let x_provided_val = fungible_asset::amount(&fa_x);
         let y_provided_val = fungible_asset::amount(&fa_y);
@@ -297,6 +294,10 @@ module liquidswap_v05::liquidity_pool {
         // Deposit into fungible stores of X and Y FA's.
         primary_fungible_store::deposit(fa_res_acc_addr, fa_x);
         primary_fungible_store::deposit(fa_res_acc_addr, fa_y);
+
+        // Track virtual reserves changes.
+        pool.x_reserves = pool.x_reserves + x_provided_val;
+        pool.y_reserves = pool.y_reserves + y_provided_val;
 
         let lp_fa = fungible_asset::mint(&pool.lp_mint_ref, provided_liq);
 
@@ -347,19 +348,25 @@ module liquidswap_v05::liquidity_pool {
             account::create_signer_with_capability(&pool.fa_signer_cap);
         let fa_res_acc_addr = signer::address_of(&fa_res_acc);
 
-        let x_reserve_val = primary_fungible_store::balance(fa_res_acc_addr, x_metadata);
-        let y_reserve_val = primary_fungible_store::balance(fa_res_acc_addr, y_metadata);
+        let x_reserve_val = pool.x_reserves;
+        let y_reserve_val = pool.y_reserves;
 
-        // Compute x, y FA values for provided lp_fa value
+        // Compute X and Y FA values for provided lp_fa value.
         let x_to_return_val =
             math::mul_div_u128((burned_lp_fa_val as u128), (x_reserve_val as u128), lp_coins_total);
         let y_to_return_val =
             math::mul_div_u128((burned_lp_fa_val as u128), (y_reserve_val as u128), lp_coins_total);
         assert!(x_to_return_val > 0 && y_to_return_val > 0, ERR_INCORRECT_BURN_VALUES);
 
+        // Track virtual reserves changes.
+        pool.x_reserves = pool.x_reserves - x_to_return_val;
+        pool.y_reserves = pool.y_reserves - y_to_return_val;
+
         // Withdraw from fungible stores of X and Y FA's.
-        let x_fa_to_return = primary_fungible_store::withdraw(&fa_res_acc, x_metadata, x_to_return_val);
-        let y_fa_to_return = primary_fungible_store::withdraw(&fa_res_acc, y_metadata, y_to_return_val);
+        let x_fa_to_return =
+            primary_fungible_store::withdraw(&fa_res_acc, x_metadata, x_to_return_val);
+        let y_fa_to_return =
+            primary_fungible_store::withdraw(&fa_res_acc, y_metadata, y_to_return_val);
 
         update_oracle<Curve>(pool, x_reserve_val, y_reserve_val, x_metadata, y_metadata);
 
@@ -415,8 +422,8 @@ module liquidswap_v05::liquidity_pool {
             account::create_signer_with_capability(&pool.fa_signer_cap);
         let fa_res_acc_addr = signer::address_of(&fa_res_acc);
 
-        let x_reserve_size = primary_fungible_store::balance(fa_res_acc_addr, x_metadata);
-        let y_reserve_size = primary_fungible_store::balance(fa_res_acc_addr, y_metadata);
+        let x_reserve_size = pool.x_reserves;
+        let y_reserve_size = pool.y_reserves;
 
         // Deposit new FA's into fungible stores of X and Y.
         primary_fungible_store::deposit(fa_res_acc_addr, x_in);
@@ -426,13 +433,17 @@ module liquidswap_v05::liquidity_pool {
         let x_swapped = primary_fungible_store::withdraw(&fa_res_acc, x_metadata, x_out);
         let y_swapped = primary_fungible_store::withdraw(&fa_res_acc, y_metadata, y_out);
 
+        // Track virtual reserves changes.
+        pool.x_reserves = pool.x_reserves + x_in_val - x_out;
+        pool.y_reserves = pool.y_reserves + y_in_val - y_out;
+
         // Confirm that lp_value for the pool hasn't been reduced.
         // For that, we compute lp_value with old reserves and lp_value with reserves after swap is done,
         // and make sure lp_value doesn't decrease
         let (x_res_new_after_fee, y_res_new_after_fee) =
             new_reserves_after_fees_scaled<Curve>(
-                primary_fungible_store::balance(fa_res_acc_addr, x_metadata),
-                primary_fungible_store::balance(fa_res_acc_addr, y_metadata),
+                pool.x_reserves,
+                pool.y_reserves,
                 x_in_val,
                 y_in_val,
                 pool.fee
@@ -488,16 +499,20 @@ module liquidswap_v05::liquidity_pool {
 
         let pool_addr = get_pool_addr<Curve>(x_metadata, y_metadata);
         let pool = borrow_global_mut<LiquidityPool<Curve>>(pool_addr);
+        let fa_res_acc =
+            account::create_signer_with_capability(&pool.fa_signer_cap);
 
         assert_pool_unlocked<Curve>(pool);
         assert!(x_loan > 0 || y_loan > 0, ERR_EMPTY_FA_LOAN);
 
-        let fa_res_acc =
-            account::create_signer_with_capability(&pool.fa_signer_cap);
-        let fa_res_acc_addr = signer::address_of(&fa_res_acc);
+        let reserve_x = pool.x_reserves;
+        let reserve_y = pool.y_reserves;
 
-        let reserve_x = primary_fungible_store::balance(fa_res_acc_addr, x_metadata);
-        let reserve_y = primary_fungible_store::balance(fa_res_acc_addr, y_metadata);
+        assert!(reserve_x >= x_loan && reserve_y >= y_loan, ERR_NOT_ENOUGH_RESERVES);
+
+        // Track virtual reserves changes.
+        pool.x_reserves = pool.x_reserves - x_loan;
+        pool.y_reserves = pool.y_reserves - y_loan;
 
         // Withdraw expected amount  from fungible stores of X and Y FA's.
         let x_loaned = primary_fungible_store::withdraw(&fa_res_acc, x_metadata, x_loan);
@@ -550,10 +565,10 @@ module liquidswap_v05::liquidity_pool {
             account::create_signer_with_capability(&pool.fa_signer_cap);
         let fa_res_acc_addr = signer::address_of(&fa_res_acc);
 
-        let x_reserve_size = primary_fungible_store::balance(fa_res_acc_addr, x_metadata);
-        let y_reserve_size = primary_fungible_store::balance(fa_res_acc_addr, y_metadata);
+        let x_reserve_size = pool.x_reserves;
+        let y_reserve_size = pool.y_reserves;
 
-        // Reserve sizes before loan out
+        // Reserve sizes before loan out.
         x_reserve_size = x_reserve_size + x_loan;
         y_reserve_size = y_reserve_size + y_loan;
 
@@ -561,13 +576,17 @@ module liquidswap_v05::liquidity_pool {
         primary_fungible_store::deposit(fa_res_acc_addr, x_in);
         primary_fungible_store::deposit(fa_res_acc_addr, y_in);
 
+        // Track virtual reserves changes.
+        pool.x_reserves = pool.x_reserves + x_in_val;
+        pool.y_reserves = pool.y_reserves + y_in_val;
+
         // Confirm that lp_value for the pool hasn't been reduced.
         // For that, we compute lp_value with old reserves and lp_value with reserves after swap is done,
         // and make sure lp_value doesn't decrease
         let (x_res_new_after_fee, y_res_new_after_fee) =
             new_reserves_after_fees_scaled<Curve>(
-                primary_fungible_store::balance(fa_res_acc_addr, x_metadata),
-                primary_fungible_store::balance(fa_res_acc_addr, y_metadata),
+                pool.x_reserves,
+                pool.y_reserves,
                 x_in_val,
                 y_in_val,
                 pool.fee,
@@ -661,6 +680,10 @@ module liquidswap_v05::liquidity_pool {
         };
         let dao_x_fee_val = math::mul_div(x_in_val, dao_fee_multiplier, FEE_SCALE);
         let dao_y_fee_val = math::mul_div(y_in_val, dao_fee_multiplier, FEE_SCALE);
+
+        // Track virtual reserves changes.
+        pool.x_reserves = pool.x_reserves - dao_x_fee_val;
+        pool.y_reserves = pool.y_reserves - dao_y_fee_val;
 
         // Withdraw DAO fee from FA stores.
         let dao_x_in = primary_fungible_store::withdraw(fa_res_acc, x_metadata, dao_x_fee_val);
@@ -783,17 +806,11 @@ module liquidswap_v05::liquidity_pool {
         let pool_obj_addr = get_pool_addr<Curve>(x_metadata, y_metadata);
         assert!(object::object_exists<LiquidityPool<Curve>>(pool_obj_addr), ERR_POOL_DOES_NOT_EXIST);
 
-        let liquidity_pool = borrow_global<LiquidityPool<Curve>>(pool_obj_addr);
+        let pool = borrow_global<LiquidityPool<Curve>>(pool_obj_addr);
 
-        assert_pool_unlocked(liquidity_pool);
+        assert_pool_unlocked(pool);
 
-        let fa_res_acc_addr =
-            account::get_signer_capability_address(&liquidity_pool.fa_signer_cap);
-
-        let x_reserve = primary_fungible_store::balance(fa_res_acc_addr, x_metadata);
-        let y_reserve = primary_fungible_store::balance(fa_res_acc_addr, y_metadata);
-
-        (x_reserve, y_reserve)
+        (pool.x_reserves, pool.y_reserves)
     }
 
     /// Get current cumulative prices.

@@ -606,7 +606,7 @@ module liquidswap_v05::flashloan_tests {
     }
 
     #[test]
-    #[expected_failure(abort_code = 65540, location = aptos_framework::fungible_asset)]
+    #[expected_failure(abort_code = liquidity_pool::ERR_NOT_ENOUGH_RESERVES)]
     fun test_fail_if_flashloan_more_than_reserved() {
         let (_, _) = register_pool_with_liquidity(100000000, 28000000000);
 
@@ -1053,5 +1053,110 @@ module liquidswap_v05::flashloan_tests {
             usdt_fa2,
             real_loan,
         );
+    }
+
+    // Reserves directly replenishment tests. Should not affect flashloan\payflashloan work.
+
+    #[test]
+    #[expected_failure(abort_code = liquidity_pool::ERR_NOT_ENOUGH_RESERVES)]
+    fun test_violate_flashloan_result_by_pool_reserves_direct_replenishment() {
+        // This test ensures that directly added reserves cannot be used
+        // as assets in flashloan. It should fail as valid reserves are less
+        // then user requests as loan.
+        let (fa_admin, _) = register_pool_with_liquidity(100000000, 28000000000);
+
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"BTC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
+
+        // Violate reserves to impact flashloan result.
+        let pool_obj_name =
+            string::bytes(&fa_helper::create_pool_obj_name<Uncorrelated>(fa_x_metadata, fa_y_metadata));
+        let fa_res_acc_addr =
+            account::create_resource_address(&@liquidswap_pool_account,*pool_obj_name);
+        let usdt_fa_to_violate_reserves = test_fas::mint_fa(&fa_admin, b"USDT", 100000000);
+        primary_fungible_store::deposit(fa_res_acc_addr, usdt_fa_to_violate_reserves);
+
+        // Attempt to loan more than valid reserves. Should not take illegal funds and fail.
+        let (btc_fa, usdt_fa, loan) =
+            liquidity_pool::flashloan<Uncorrelated>(100000000, 28000001234, fa_x_metadata, fa_y_metadata);
+
+        liquidity_pool::pay_flashloan<Uncorrelated>(
+            btc_fa,
+            usdt_fa,
+            loan
+        );
+    }
+
+    #[test]
+    fun test_violate_pay_flashloan_by_pool_reserves_direct_replenishment() {
+        // This test ensures that pay_flashloand won't include illegaly added reserves
+        // into internal pool reserves counter. Just have to check that actual balance will not
+        // override internal (legal) balance.
+        let initial_x_bal = 10000;
+        let initial_y_bal = 10000;
+        let (fa_admin, _) = register_pool_with_liquidity(initial_x_bal, initial_y_bal);
+
+        let fa_x_metadata = test_fas::get_fa_metadata_from_symbol(b"BTC");
+        let fa_y_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
+
+        let pool_obj_name =
+            string::bytes(&fa_helper::create_pool_obj_name<Uncorrelated>(fa_x_metadata, fa_y_metadata));
+        let pool_fa_store_res_acc_addr =
+            account::create_resource_address(&@liquidswap_pool_account, *pool_obj_name);
+
+        // Loan all pool reserves.
+        let (btc_fa, usdt_fa, loan) =
+            liquidity_pool::flashloan<Uncorrelated>(initial_x_bal, initial_y_bal, fa_x_metadata, fa_y_metadata);
+
+        // Check directly X and Y FA's stores are empty at flashloan.
+        assert!(primary_fungible_store::balance(pool_fa_store_res_acc_addr, fa_x_metadata) == 0, 1);
+        assert!(primary_fungible_store::balance(pool_fa_store_res_acc_addr, fa_y_metadata) == 0, 2);
+
+        // Violate reserves to impact virtual reserves counter using pay_flashloan.
+        let pool_obj_name =
+            string::bytes(&fa_helper::create_pool_obj_name<Uncorrelated>(fa_x_metadata, fa_y_metadata));
+        let fa_res_acc_addr =
+            account::create_resource_address(&@liquidswap_pool_account,*pool_obj_name);
+        let btc_fa_to_violate_reserves_amount = 100020;
+        let btc_fa_to_violate_reserves =
+            test_fas::mint_fa(&fa_admin, b"BTC", btc_fa_to_violate_reserves_amount);
+        let usdt_fa_to_violate_reserves_amount = 100010;
+        let usdt_fa_to_violate_reserves =
+            test_fas::mint_fa(&fa_admin, b"USDT", usdt_fa_to_violate_reserves_amount);
+        primary_fungible_store::deposit(fa_res_acc_addr, btc_fa_to_violate_reserves);
+        primary_fungible_store::deposit(fa_res_acc_addr, usdt_fa_to_violate_reserves);
+
+        // Check directly X and Y FA's stores are violated.
+        assert!(primary_fungible_store::balance(pool_fa_store_res_acc_addr, fa_x_metadata) ==
+            btc_fa_to_violate_reserves_amount, 3);
+        assert!(primary_fungible_store::balance(pool_fa_store_res_acc_addr, fa_y_metadata) ==
+            usdt_fa_to_violate_reserves_amount, 4);
+
+        let btc_fa_to_return_amount = 20000;
+        let btc_fa_to_return = test_fas::mint_fa(&fa_admin, b"BTC", btc_fa_to_return_amount);
+        liquidity_pool::pay_flashloan<Uncorrelated>(
+            btc_fa_to_return,
+            usdt_fa,
+            loan
+        );
+
+        // Check DAO fee calculated right.
+        let (fee_x, fee_y) = dao_storage::get_storage_size<Uncorrelated>(fa_x_metadata, fa_y_metadata);
+        assert!(fee_x == 20, 5);
+        assert!(fee_y == 10, 6);
+
+        // Check directly X and Y FA's stores contains legal and illegal amounts.
+        assert!(primary_fungible_store::balance(pool_fa_store_res_acc_addr, fa_x_metadata) ==
+            btc_fa_to_return_amount - fee_x + btc_fa_to_violate_reserves_amount, 7);
+        assert!(primary_fungible_store::balance(pool_fa_store_res_acc_addr, fa_y_metadata) ==
+            initial_y_bal - fee_y + usdt_fa_to_violate_reserves_amount, 8);
+
+        // Check X and Y reserves with getter should contain only legal amounts.
+        let (x_res, y_res) =
+            liquidity_pool::get_reserves_size<Uncorrelated>(fa_x_metadata, fa_y_metadata);
+        assert!(x_res == btc_fa_to_return_amount - fee_x, 9);
+        assert!(y_res == initial_y_bal - fee_y, 10);
+
+        test_fas::burn_fa(&fa_admin, b"BTC", btc_fa);
     }
 }

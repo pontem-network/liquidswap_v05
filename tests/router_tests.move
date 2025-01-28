@@ -228,10 +228,6 @@ module liquidswap_v05::router_tests {
         primary_fungible_store::deposit(signer::address_of(&lp_owner), coin_y);
     }
 
-    // todo: recheck
-    // TODO: test that one can't remove liquidity with reverse coin order
-    //  (it's checked with generic params, so I don't know)
-
     #[test]
     #[expected_failure(abort_code = router::ERR_FA_OUT_NUM_LESS_THAN_EXPECTED_MINIMUM)]
     fun test_remove_liquidity_to_fail_if_less_than_minimum_x() {
