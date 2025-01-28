@@ -1,9 +1,11 @@
 /// The module allows for emergency stop Liquidswap operations.
 module liquidswap_v05::emergency {
     use std::signer;
-    use liquidswap_v05::global_config;
-    use aptos_framework::account::SignerCapability;
+
     use aptos_framework::account;
+    use aptos_framework::account::SignerCapability;
+
+    use liquidswap_v05::global_config;
 
     friend liquidswap_v05::liquidity_pool;
 

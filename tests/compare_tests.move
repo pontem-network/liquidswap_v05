@@ -1,67 +1,111 @@
-module 0x2::aptos_coin {
-    struct AptosCoin {}
-}
-
-module 0x2::coins_a {
-    struct BTC {}
-}
-
-module 0x2::coins_b {
-    struct BTC {}
-}
-
 #[test_only]
 module liquidswap_v05::compare_tests {
-    use aptos_framework::aptos_coin::AptosCoin;
+    use std::option;
+
     use aptos_std::comparator;
+    use aptos_framework::account::create_signer_for_test;
+    use aptos_framework::aptos_coin;
+    use aptos_framework::aptos_coin::AptosCoin;
+    use aptos_framework::coin;
+    use aptos_framework::fungible_asset;
+    use aptos_framework::fungible_asset::Metadata;
+    use aptos_framework::object::Object;
 
-    use liquidswap_v05::coin_helper;
-    use test_coin_admin::test_coins::{BTC, USDC, USDT};
+    use liquidswap_v05::fa_helper;
+    use test_fa_admin::test_fas;
 
-    #[test]
-    fun test_coins_equal() {
-        assert!(comparator::is_equal(&coin_helper::compare<BTC, BTC>()), 1);
-        assert!(comparator::is_equal(&coin_helper::compare<USDC, USDC>()), 2);
-        assert!(comparator::is_equal(&coin_helper::compare<USDT, USDT>()), 3);
-        assert!(comparator::is_equal(&coin_helper::compare<AptosCoin, AptosCoin>()), 4);
+    fun create_fake_apt(fa_admin: &signer): Object<Metadata> {
+        // Create fake APT FA.
+        let (mint_ref, _) = test_fas::register_fa(
+            fa_admin,
+            b"Aptos Coin",
+            b"APT",
+            8,
+            b"FAKE_APT_FA_OBJ"
+        );
+
+        fungible_asset::mint_ref_metadata(&mint_ref)
     }
 
     #[test]
-    fun test_coins_compared_with_struct_name_first() {
-        assert!(comparator::is_smaller_than(&coin_helper::compare<BTC, USDC>()), 1);
-        assert!(comparator::is_smaller_than(&coin_helper::compare<USDC, USDT>()), 2);
-        assert!(comparator::is_smaller_than(&coin_helper::compare<BTC, AptosCoin>()), 3);
+    fun test_fas_equal() {
+        // Create AptosCoin.
+        aptos_coin::ensure_initialized_with_apt_fa_metadata_for_test();
 
-        assert!(comparator::is_greater_than(&coin_helper::compare<USDC, BTC>()), 4);
-        assert!(comparator::is_greater_than(&coin_helper::compare<USDT, USDC>()), 5);
-        assert!(comparator::is_greater_than(&coin_helper::compare<AptosCoin, USDT>()), 6);
+        test_fas::create_admin_with_fas();
+
+        let btc_metadata = test_fas::get_fa_metadata_from_symbol(b"BTC");
+        let usdt_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
+        let usdc_metadata = test_fas::get_fa_metadata_from_symbol(b"USDC");
+        let apt_metadata = option::extract(&mut coin::paired_metadata<AptosCoin>());
+
+        assert!(comparator::is_equal(&fa_helper::compare_fa(btc_metadata, btc_metadata)), 1);
+        assert!(comparator::is_equal(&fa_helper::compare_fa(usdc_metadata, usdc_metadata)), 2);
+        assert!(comparator::is_equal(&fa_helper::compare_fa(usdt_metadata, usdt_metadata)), 3);
+        assert!(comparator::is_equal(&fa_helper::compare_fa(apt_metadata, apt_metadata)), 4);
     }
 
     #[test]
-    fun test_coins_compared_with_module_name_if_struct_name_is_equal() {
-        assert!(comparator::is_smaller_than(&coin_helper::compare<0x2::coins_a::BTC, 0x2::coins_b::BTC>()), 1);
-        assert!(comparator::is_greater_than(&coin_helper::compare<0x2::coins_b::BTC, 0x2::coins_a::BTC>()), 2);
+    fun test_fas_compared_with_symb_first() {
+        // Create AptosCoin.
+        aptos_coin::ensure_initialized_with_apt_fa_metadata_for_test();
+
+        test_fas::create_admin_with_fas();
+
+        let btc_metadata = test_fas::get_fa_metadata_from_symbol(b"BTC");
+        let usdt_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
+        let usdc_metadata = test_fas::get_fa_metadata_from_symbol(b"USDC");
+        let apt_metadata = option::extract(&mut coin::paired_metadata<AptosCoin>());
+
+        assert!(comparator::is_smaller_than(&fa_helper::compare_fa(btc_metadata, usdc_metadata)), 1);
+        assert!(comparator::is_smaller_than(&fa_helper::compare_fa(usdc_metadata, usdt_metadata)), 2);
+        assert!(comparator::is_smaller_than(&fa_helper::compare_fa(apt_metadata, btc_metadata)), 3);
+
+        assert!(comparator::is_greater_than(&fa_helper::compare_fa(usdc_metadata, btc_metadata)), 4);
+        assert!(comparator::is_greater_than(&fa_helper::compare_fa(usdt_metadata, usdc_metadata)), 5);
+        assert!(comparator::is_greater_than(&fa_helper::compare_fa(usdt_metadata, apt_metadata)), 6);
     }
 
     #[test]
-    fun test_coins_compared_with_address_if_all_others_are_equal() {
-        assert!(comparator::is_smaller_than(&coin_helper::compare<AptosCoin, 0x2::aptos_coin::AptosCoin>()), 1);
-        assert!(comparator::is_greater_than(&coin_helper::compare<0x2::aptos_coin::AptosCoin, AptosCoin>()), 1);
+    fun test_fas_compared_with_metadata_address_if_symbs_are_equal() {
+        // Create AptosCoin.
+        aptos_coin::ensure_initialized_with_apt_fa_metadata_for_test();
+
+        let apt_metadata = option::extract(&mut coin::paired_metadata<AptosCoin>());
+        let fake_apt_metadata = create_fake_apt(&create_signer_for_test(@test_fa_admin));
+
+        assert!(comparator::is_smaller_than(&fa_helper::compare_fa(apt_metadata, fake_apt_metadata)), 1);
+        assert!(comparator::is_greater_than(&fa_helper::compare_fa(fake_apt_metadata, apt_metadata)), 2);
     }
 
     #[test]
-    fun test_is_sorted() {
-        assert!(coin_helper::is_sorted<BTC, AptosCoin>(), 1);
-        assert!(coin_helper::is_sorted<USDC, USDT>(), 2);
-        assert!(coin_helper::is_sorted<AptosCoin, 0x2::aptos_coin::AptosCoin>(), 3);
+    fun test_is_fa_sorted() {
+        // Create AptosCoin.
+        aptos_coin::ensure_initialized_with_apt_fa_metadata_for_test();
 
-        assert!(!coin_helper::is_sorted<AptosCoin, BTC>(), 4);
-        assert!(!coin_helper::is_sorted<USDT, USDC>(), 5);
+        test_fas::create_admin_with_fas();
+
+        let btc_metadata = test_fas::get_fa_metadata_from_symbol(b"BTC");
+        let usdt_metadata = test_fas::get_fa_metadata_from_symbol(b"USDT");
+        let usdc_metadata = test_fas::get_fa_metadata_from_symbol(b"USDC");
+        let apt_metadata = option::extract(&mut coin::paired_metadata<AptosCoin>());
+        let fake_apt_metadata = create_fake_apt(&create_signer_for_test(@test_fa_admin));
+
+        assert!(fa_helper::is_fa_sorted(apt_metadata, btc_metadata), 1);
+        assert!(fa_helper::is_fa_sorted(usdc_metadata, usdt_metadata), 2);
+        assert!(fa_helper::is_fa_sorted(apt_metadata, fake_apt_metadata), 3);
+
+        assert!(!fa_helper::is_fa_sorted(btc_metadata, apt_metadata), 4);
+        assert!(!fa_helper::is_fa_sorted(usdt_metadata, usdc_metadata), 5);
     }
 
     #[test]
-    #[expected_failure(abort_code = coin_helper::ERR_CANNOT_BE_THE_SAME_COIN)]
+    #[expected_failure(abort_code = fa_helper::ERR_CANNOT_BE_THE_SAME_FA)]
     fun test_is_sorted_cannot_be_equal() {
-        assert!(coin_helper::is_sorted<AptosCoin, AptosCoin>(), 1);
+        // Create AptosCoin.
+        aptos_coin::ensure_initialized_with_apt_fa_metadata_for_test();
+        let apt_metadata = option::extract(&mut coin::paired_metadata<AptosCoin>());
+
+        assert!(fa_helper::is_fa_sorted(apt_metadata, apt_metadata), 1);
     }
 }

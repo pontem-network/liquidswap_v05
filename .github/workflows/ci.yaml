@@ -12,7 +12,7 @@ on:
 jobs:
   tests:
     name: Test
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     defaults:
       run:
         shell: bash
@@ -29,7 +29,7 @@ jobs:
           prover: true
 
       - name: Build
-        run: aptos move compile --bytecode-version 6
+        run: aptos move compile
 
       - name: Test Liquidswap
-        run: aptos move test --bytecode-version 6
+        run: aptos move test
